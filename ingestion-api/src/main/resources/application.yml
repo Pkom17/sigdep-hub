@@ -2,7 +2,7 @@ spring:
   application:
     name: sigdep-ingestion-api
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/sigdep}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5436/sigdep}
     username: ${SPRING_DATASOURCE_USERNAME:sigdep}
     password: ${SPRING_DATASOURCE_PASSWORD:sigdep}
   jpa:
@@ -16,7 +16,7 @@ spring:
         order_updates: true
   liquibase:
     enabled: ${SPRING_LIQUIBASE_ENABLED:true}
-    change-log: classpath:db/changelog/db.changelog-master.yaml
+    change-log: classpath:db/changelog/db.changelog-master.xml
   security:
     oauth2:
       resourceserver:
@@ -24,7 +24,7 @@ spring:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/sigdep}
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8090}
   shutdown: graceful
 
 management:

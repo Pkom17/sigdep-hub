@@ -20,4 +20,6 @@
     <include file="db/changelog/seed/012-seed-districts.xml"/>
     <include file="db/changelog/seed/013-seed-sites.xml"/>
 
+    <include file="db/changelog/v1.0/014-source-uuid-to-varchar.xml"/>
+
 </databaseChangeLog>

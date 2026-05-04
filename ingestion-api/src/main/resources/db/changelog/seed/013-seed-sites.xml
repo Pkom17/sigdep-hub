@@ -5,24 +5,30 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="013-seed-sites" author="itechciv" failOnError="true">
+    <changeSet id="013a-create-stage-sites" author="itechciv" failOnError="true">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">SELECT COUNT(*) FROM core.sites</sqlCheck>
         </preConditions>
-
         <sql>
-            CREATE TEMP TABLE tmp_sites (
+            CREATE TABLE IF NOT EXISTS core.stage_sites (
                 code           VARCHAR(50),
                 name           VARCHAR(255),
                 district_code  VARCHAR(50),
                 facility_type  VARCHAR(10),
                 source_uuid    CHAR(38)
-            ) ON COMMIT DROP;
+            );
+            TRUNCATE core.stage_sites;
         </sql>
+    </changeSet>
 
+    <changeSet id="013b-load-sites" author="itechciv" failOnError="true">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM core.sites</sqlCheck>
+        </preConditions>
         <loadData
                 file="db/data/sites.csv"
-                tableName="tmp_sites"
+                tableName="stage_sites"
+                schemaName="core"
                 relativeToChangelogFile="false"
                 separator=","
                 quotchar="&quot;"
@@ -33,12 +39,19 @@
             <column name="facility_type" type="STRING"/>
             <column name="source_uuid" type="STRING"/>
         </loadData>
+    </changeSet>
 
+    <changeSet id="013c-promote-sites" author="itechciv" failOnError="true">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM core.sites</sqlCheck>
+        </preConditions>
         <sql>
             INSERT INTO core.sites (code, name, district_id, facility_type, source_uuid)
-            SELECT t.code, t.name, d.id, NULLIF(t.facility_type, ''), NULLIF(t.source_uuid, '')
-            FROM tmp_sites t
-            JOIN core.districts d ON d.code = t.district_code;
+            SELECT s.code, s.name, d.id, NULLIF(s.facility_type, ''), NULLIF(s.source_uuid, '')
+            FROM core.stage_sites s
+            JOIN core.districts d ON d.code = s.district_code;
+
+            DROP TABLE core.stage_sites;
         </sql>
     </changeSet>
 

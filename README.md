@@ -7,7 +7,7 @@ Central server consolidating data from 550+ SIGDEP-3 sites. Maven multi-module.
 | Module          | Description                                                         |
 |-----------------|---------------------------------------------------------------------|
 | `core-domain`   | JPA entities, repositories, domain services. Library, no `main()`.  |
-| `ingestion-api` | Spring Boot app on port `8080`. Receives sync batches from agents.  |
+| `ingestion-api` | Spring Boot app on port `8090`. Receives sync batches from agents.  |
 | `console-api`   | Spring Boot app on port `8081`. UI endpoints + serves React build.  |
 | `console-web`   | React 18 + Vite frontend.                                           |
 
@@ -30,9 +30,9 @@ cd ../sigdep-hub && mvn clean install
 ## Dev environment
 
 ```bash
-cd infra && docker compose up -d            # postgres + keycloak
+cd infra && docker compose up -d            # postgres (5436) + keycloak (8180)
 
-cd ../ingestion-api && mvn spring-boot:run  # port 8080, runs Liquibase
+cd ../ingestion-api && mvn spring-boot:run  # port 8090, runs Liquibase
 cd ../console-api    && mvn spring-boot:run # port 8081
 
 cd ../console-web && npm install && npm run dev   # port 5173, proxies /api → 8081

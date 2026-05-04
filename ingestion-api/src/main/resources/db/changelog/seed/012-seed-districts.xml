@@ -5,23 +5,29 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
-    <changeSet id="012-seed-districts" author="itechciv" failOnError="true">
+    <changeSet id="012a-create-stage-districts" author="itechciv" failOnError="true">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">SELECT COUNT(*) FROM core.districts</sqlCheck>
         </preConditions>
-
         <sql>
-            CREATE TEMP TABLE tmp_districts (
+            CREATE TABLE IF NOT EXISTS core.stage_districts (
                 code         VARCHAR(50),
                 region_code  VARCHAR(50),
                 name         VARCHAR(255),
                 source_uuid  CHAR(38)
-            ) ON COMMIT DROP;
+            );
+            TRUNCATE core.stage_districts;
         </sql>
+    </changeSet>
 
+    <changeSet id="012b-load-districts" author="itechciv" failOnError="true">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM core.districts</sqlCheck>
+        </preConditions>
         <loadData
                 file="db/data/districts.csv"
-                tableName="tmp_districts"
+                tableName="stage_districts"
+                schemaName="core"
                 relativeToChangelogFile="false"
                 separator=","
                 quotchar="&quot;"
@@ -31,12 +37,19 @@
             <column name="name" type="STRING"/>
             <column name="source_uuid" type="STRING"/>
         </loadData>
+    </changeSet>
 
+    <changeSet id="012c-promote-districts" author="itechciv" failOnError="true">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM core.districts</sqlCheck>
+        </preConditions>
         <sql>
             INSERT INTO core.districts (code, region_id, name, source_uuid)
-            SELECT t.code, r.id, t.name, NULLIF(t.source_uuid, '')
-            FROM tmp_districts t
-            JOIN core.regions r ON r.code = t.region_code;
+            SELECT s.code, r.id, s.name, NULLIF(s.source_uuid, '')
+            FROM core.stage_districts s
+            JOIN core.regions r ON r.code = s.region_code;
+
+            DROP TABLE core.stage_districts;
         </sql>
     </changeSet>
 

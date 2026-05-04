@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      CHAR(38) pads values with trailing spaces, which leaks into JOINs and
+      JSON exports. Switch to VARCHAR(38) and strip padding in the same step.
+    -->
+    <changeSet id="014-source-uuid-to-varchar" author="itechciv" failOnError="true">
+        <sql>
+            ALTER TABLE core.regions
+              ALTER COLUMN source_uuid TYPE VARCHAR(38) USING TRIM(source_uuid);
+
+            ALTER TABLE core.districts
+              ALTER COLUMN source_uuid TYPE VARCHAR(38) USING TRIM(source_uuid);
+
+            ALTER TABLE core.sites
+              ALTER COLUMN source_uuid TYPE VARCHAR(38) USING NULLIF(TRIM(source_uuid), '');
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE core.regions   ALTER COLUMN source_uuid TYPE CHAR(38);
+                ALTER TABLE core.districts ALTER COLUMN source_uuid TYPE CHAR(38);
+                ALTER TABLE core.sites     ALTER COLUMN source_uuid TYPE CHAR(38);
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

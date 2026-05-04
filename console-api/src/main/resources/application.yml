@@ -2,7 +2,7 @@ spring:
   application:
     name: sigdep-console-api
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/sigdep}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5436/sigdep}
     username: ${SPRING_DATASOURCE_USERNAME:sigdep}
     password: ${SPRING_DATASOURCE_PASSWORD:sigdep}
   jpa:
