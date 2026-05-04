@@ -1,0 +1,27 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-sites
+      author: itechciv
+      failOnError: true
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE core.sites (
+                id              BIGSERIAL PRIMARY KEY,
+                code            VARCHAR(50)  UNIQUE NOT NULL,
+                name            VARCHAR(255) NOT NULL,
+                region          VARCHAR(100),
+                district        VARCHAR(100),
+                facility_type   VARCHAR(50),
+                latitude        DOUBLE PRECISION,
+                longitude       DOUBLE PRECISION,
+                active          BOOLEAN DEFAULT TRUE,
+                api_key_hash    VARCHAR(255),
+                last_sync_at    TIMESTAMP,
+                created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+                updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
+              );
+              CREATE INDEX idx_sites_region ON core.sites(region);
+              CREATE INDEX idx_sites_active ON core.sites(active) WHERE active = TRUE;
+      rollback:
+        - sql: DROP TABLE IF EXISTS core.sites;

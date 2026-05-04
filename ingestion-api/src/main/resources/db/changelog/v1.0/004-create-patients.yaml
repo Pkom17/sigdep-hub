@@ -1,0 +1,28 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-create-patients
+      author: itechciv
+      failOnError: true
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE core.patients (
+                id                    BIGSERIAL PRIMARY KEY,
+                site_id               BIGINT NOT NULL REFERENCES core.sites(id),
+                source_uuid           UUID NOT NULL,
+                sex                   CHAR(1) CHECK (sex IN ('M', 'F', 'U')),
+                birth_date            DATE,
+                birth_date_estimated  BOOLEAN DEFAULT FALSE,
+                birth_place           VARCHAR(255),
+                profession            VARCHAR(100),
+                education_level       VARCHAR(50),
+                marital_status        VARCHAR(50),
+                religion              VARCHAR(50),
+                voided                BOOLEAN DEFAULT FALSE,
+                voided_at             TIMESTAMP,
+                created_at            TIMESTAMP NOT NULL DEFAULT NOW(),
+                updated_at            TIMESTAMP NOT NULL DEFAULT NOW(),
+                UNIQUE (site_id, source_uuid)
+              );
+      rollback:
+        - sql: DROP TABLE IF EXISTS core.patients;

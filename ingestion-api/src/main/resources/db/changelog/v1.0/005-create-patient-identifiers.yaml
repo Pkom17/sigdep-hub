@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-create-patient-identifiers
+      author: itechciv
+      failOnError: true
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE core.patient_identifiers (
+                id                    BIGSERIAL PRIMARY KEY,
+                patient_id            BIGINT NOT NULL REFERENCES core.patients(id),
+                identifier_type_id    INT NOT NULL REFERENCES core.identifier_types(id),
+                identifier_value      VARCHAR(100) NOT NULL,
+                is_preferred          BOOLEAN DEFAULT FALSE,
+                site_id               BIGINT NOT NULL REFERENCES core.sites(id),
+                source_uuid           UUID,
+                valid_from            DATE,
+                valid_to              DATE,
+                voided                BOOLEAN DEFAULT FALSE,
+                created_at            TIMESTAMP NOT NULL DEFAULT NOW(),
+                updated_at            TIMESTAMP NOT NULL DEFAULT NOW(),
+                UNIQUE (identifier_type_id, identifier_value)
+              );
+              CREATE INDEX idx_patient_identifiers_patient
+                ON core.patient_identifiers(patient_id, is_preferred);
+              CREATE INDEX idx_patient_identifiers_value
+                ON core.patient_identifiers(identifier_value);
+      rollback:
+        - sql: DROP TABLE IF EXISTS core.patient_identifiers;

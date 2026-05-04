@@ -1,0 +1,47 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-create-visits
+      author: itechciv
+      failOnError: true
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE core.visits (
+                id                              BIGSERIAL,
+                patient_id                      BIGINT NOT NULL REFERENCES core.patients(id),
+                site_id                         BIGINT NOT NULL REFERENCES core.sites(id),
+                source_uuid                     UUID NOT NULL,
+                source_form                     VARCHAR(50),
+                visit_date                      DATE NOT NULL,
+                next_visit_date                 DATE,
+                tb_screening_result             VARCHAR(50),
+                tb_diagnosed                    BOOLEAN,
+                tb_treatment_status             VARCHAR(50),
+                tb_treatment_start_date         DATE,
+                who_stage                       SMALLINT,
+                cdc_stage                       VARCHAR(10),
+                ctx_prescribed                  BOOLEAN,
+                ctx_start_date                  DATE,
+                ivsa_success_confirmation_date  DATE,
+                is_pregnant                     BOOLEAN,
+                is_breastfeeding                BOOLEAN,
+                weight_kg                       DECIMAL(5,2),
+                height_cm                       DECIMAL(5,2),
+                extra_data                      JSONB,
+                voided                          BOOLEAN DEFAULT FALSE,
+                created_at                      TIMESTAMP NOT NULL DEFAULT NOW(),
+                updated_at                      TIMESTAMP NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (id, visit_date),
+                UNIQUE (site_id, source_uuid, visit_date)
+              ) PARTITION BY RANGE (visit_date);
+
+              CREATE TABLE core.visits_2025 PARTITION OF core.visits
+                FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
+              CREATE TABLE core.visits_2026 PARTITION OF core.visits
+                FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
+
+              CREATE INDEX idx_visits_patient_date ON core.visits(patient_id, visit_date DESC);
+              CREATE INDEX idx_visits_site_date    ON core.visits(site_id, visit_date DESC);
+              CREATE INDEX idx_visits_extra_gin    ON core.visits USING GIN (extra_data);
+      rollback:
+        - sql: DROP TABLE IF EXISTS core.visits CASCADE;

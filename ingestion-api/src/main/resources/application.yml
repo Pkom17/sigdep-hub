@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: sigdep-ingestion-api
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/sigdep}
+    username: ${SPRING_DATASOURCE_USERNAME:sigdep}
+    password: ${SPRING_DATASOURCE_PASSWORD:sigdep}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: core
+        jdbc.batch_size: 200
+        order_inserts: true
+        order_updates: true
+  liquibase:
+    enabled: ${SPRING_LIQUIBASE_ENABLED:true}
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/sigdep}
+
+server:
+  port: 8080
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+sigdep:
+  ingestion:
+    rate-limit-per-site: ${INGESTION_RATE_LIMIT_PER_SITE:600}

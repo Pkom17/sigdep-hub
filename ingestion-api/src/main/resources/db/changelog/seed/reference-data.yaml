@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: seed-identifier-types
+      author: itechciv
+      runOnChange: true
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO core.identifier_types (code, name) VALUES
+                ('CODE_ARV', 'Code ARV'),
+                ('UPID',     'Unique Patient Identifier'),
+                ('CMU',      'Couverture Maladie Universelle'),
+                ('NIN',      'Numéro Identification National')
+              ON CONFLICT (code) DO NOTHING;

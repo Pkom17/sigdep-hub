@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-schemas
+      author: itechciv
+      failOnError: true
+      changes:
+        - sql:
+            splitStatements: true
+            stripComments: true
+            sql: |
+              CREATE SCHEMA IF NOT EXISTS core;
+              CREATE SCHEMA IF NOT EXISTS analytics;
+              CREATE SCHEMA IF NOT EXISTS audit;
+      rollback:
+        - sql: |
+            DROP SCHEMA IF EXISTS audit CASCADE;
+            DROP SCHEMA IF EXISTS analytics CASCADE;
+            DROP SCHEMA IF EXISTS core CASCADE;
