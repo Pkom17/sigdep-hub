@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <include file="db/changelog/v1.0/001-create-schemas.xml"/>
+    <include file="db/changelog/v1.0/002-create-regions.xml"/>
+    <include file="db/changelog/v1.0/003-create-districts.xml"/>
+    <include file="db/changelog/v1.0/004-create-sites.xml"/>
+    <include file="db/changelog/v1.0/005-create-identifier-types.xml"/>
+    <include file="db/changelog/v1.0/006-create-patients.xml"/>
+    <include file="db/changelog/v1.0/007-create-patient-identifiers.xml"/>
+    <include file="db/changelog/v1.0/008-create-visits.xml"/>
+    <include file="db/changelog/v1.0/009-create-dispensations.xml"/>
+
+    <include file="db/changelog/seed/010-seed-identifier-types.xml"/>
+    <include file="db/changelog/seed/011-seed-regions.xml"/>
+    <include file="db/changelog/seed/012-seed-districts.xml"/>
+    <include file="db/changelog/seed/013-seed-sites.xml"/>
+
+</databaseChangeLog>

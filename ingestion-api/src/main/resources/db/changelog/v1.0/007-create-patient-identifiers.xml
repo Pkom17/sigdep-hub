@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="007-create-patient-identifiers" author="itechciv" failOnError="true">
+        <createTable tableName="patient_identifiers" schemaName="core">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="patient_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_pid_patient"
+                             references="core.patients(id)"/>
+            </column>
+            <column name="identifier_type_id" type="INT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_pid_type"
+                             references="core.identifier_types(id)"/>
+            </column>
+            <column name="identifier_value" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_preferred" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="site_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_pid_site"
+                             references="core.sites(id)"/>
+            </column>
+            <column name="source_uuid" type="UUID"/>
+            <column name="valid_from" type="DATE"/>
+            <column name="valid_to" type="DATE"/>
+            <column name="voided" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="patient_identifiers" schemaName="core"
+                             columnNames="identifier_type_id, identifier_value"
+                             constraintName="uq_pid_type_value"/>
+
+        <createIndex tableName="patient_identifiers" schemaName="core"
+                     indexName="idx_pid_patient">
+            <column name="patient_id"/>
+            <column name="is_preferred"/>
+        </createIndex>
+        <createIndex tableName="patient_identifiers" schemaName="core"
+                     indexName="idx_pid_value">
+            <column name="identifier_value"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="patient_identifiers" schemaName="core"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

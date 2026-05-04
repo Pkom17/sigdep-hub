@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="013-seed-sites" author="itechciv" failOnError="true">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM core.sites</sqlCheck>
+        </preConditions>
+
+        <sql>
+            CREATE TEMP TABLE tmp_sites (
+                code           VARCHAR(50),
+                name           VARCHAR(255),
+                district_code  VARCHAR(50),
+                facility_type  VARCHAR(10),
+                source_uuid    CHAR(38)
+            ) ON COMMIT DROP;
+        </sql>
+
+        <loadData
+                file="db/data/sites.csv"
+                tableName="tmp_sites"
+                relativeToChangelogFile="false"
+                separator=","
+                quotchar="&quot;"
+                encoding="UTF-8">
+            <column name="code" type="STRING"/>
+            <column name="name" type="STRING"/>
+            <column name="district_code" type="STRING"/>
+            <column name="facility_type" type="STRING"/>
+            <column name="source_uuid" type="STRING"/>
+        </loadData>
+
+        <sql>
+            INSERT INTO core.sites (code, name, district_id, facility_type, source_uuid)
+            SELECT t.code, t.name, d.id, NULLIF(t.facility_type, ''), NULLIF(t.source_uuid, '')
+            FROM tmp_sites t
+            JOIN core.districts d ON d.code = t.district_code;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

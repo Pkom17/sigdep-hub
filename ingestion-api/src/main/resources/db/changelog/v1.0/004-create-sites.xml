@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="004-create-sites" author="itechciv" failOnError="true">
+        <createTable tableName="sites" schemaName="core"
+                     remarks="Establishments. code = MOH/DHIS2 'Identifiant Unique Etablissement'.">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(50)"
+                    remarks="Identifiant Unique Etablissement (DHIS2 / MSHP)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="district_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_sites_district"
+                             references="core.districts(id)"/>
+            </column>
+            <column name="facility_type" type="VARCHAR(10)"
+                    remarks="PV = privé, PB = public"/>
+            <column name="latitude" type="DOUBLE PRECISION"/>
+            <column name="longitude" type="DOUBLE PRECISION"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="source_uuid" type="CHAR(38)"
+                    remarks="OpenMRS location.uuid (nullable for sites not yet in SIGDEP-3)">
+                <constraints unique="true"/>
+            </column>
+            <column name="api_key_hash" type="VARCHAR(255)"/>
+            <column name="last_sync_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="sites" schemaName="core" indexName="idx_sites_district">
+            <column name="district_id"/>
+        </createIndex>
+        <createIndex tableName="sites" schemaName="core" indexName="idx_sites_facility_type">
+            <column name="facility_type"/>
+        </createIndex>
+        <sql>
+            CREATE INDEX idx_sites_active ON core.sites(active) WHERE active = TRUE;
+        </sql>
+
+        <rollback>
+            <dropTable tableName="sites" schemaName="core"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

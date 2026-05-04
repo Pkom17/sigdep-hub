@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="010-seed-identifier-types" author="itechciv" runOnChange="true">
+        <sql>
+            INSERT INTO core.identifier_types (code, name) VALUES
+              ('CODE_ARV', 'Code ARV'),
+              ('UPID',     'Unique Patient Identifier'),
+              ('CMU',      'Couverture Maladie Universelle'),
+              ('NIN',      'Numéro Identification National')
+            ON CONFLICT (code) DO NOTHING;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

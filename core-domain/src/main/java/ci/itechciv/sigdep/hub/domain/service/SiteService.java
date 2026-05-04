@@ -17,4 +17,8 @@ public class SiteService {
     public Optional<Site> findByCode(String code) {
         return sites.findByCode(code);
     }
+
+    public Optional<Site> findBySourceUuid(String sourceUuid) {
+        return sites.findBySourceUuid(sourceUuid);
+    }
 }

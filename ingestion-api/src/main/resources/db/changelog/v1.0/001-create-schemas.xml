@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="001-create-schemas" author="itechciv" failOnError="true">
+        <sql splitStatements="true">
+            CREATE SCHEMA IF NOT EXISTS core;
+            CREATE SCHEMA IF NOT EXISTS analytics;
+            CREATE SCHEMA IF NOT EXISTS audit;
+        </sql>
+        <rollback>
+            <sql>
+                DROP SCHEMA IF EXISTS audit CASCADE;
+                DROP SCHEMA IF EXISTS analytics CASCADE;
+                DROP SCHEMA IF EXISTS core CASCADE;
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

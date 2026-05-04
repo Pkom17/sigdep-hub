@@ -2,9 +2,12 @@ package ci.itechciv.sigdep.hub.domain.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 
@@ -22,16 +25,20 @@ public class Site {
     @Column(nullable = false)
     private String name;
 
-    private String region;
-    private String district;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "district_id", nullable = false)
+    private District district;
 
-    @Column(name = "facility_type", length = 50)
+    @Column(name = "facility_type", length = 10)
     private String facilityType;
 
     private Double latitude;
     private Double longitude;
 
     private Boolean active = true;
+
+    @Column(name = "source_uuid", length = 38, unique = true)
+    private String sourceUuid;
 
     @Column(name = "api_key_hash")
     private String apiKeyHash;
@@ -50,10 +57,8 @@ public class Site {
     public void setCode(String code) { this.code = code; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-    public String getRegion() { return region; }
-    public void setRegion(String region) { this.region = region; }
-    public String getDistrict() { return district; }
-    public void setDistrict(String district) { this.district = district; }
+    public District getDistrict() { return district; }
+    public void setDistrict(District district) { this.district = district; }
     public String getFacilityType() { return facilityType; }
     public void setFacilityType(String facilityType) { this.facilityType = facilityType; }
     public Double getLatitude() { return latitude; }
@@ -62,6 +67,8 @@ public class Site {
     public void setLongitude(Double longitude) { this.longitude = longitude; }
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }
+    public String getSourceUuid() { return sourceUuid; }
+    public void setSourceUuid(String sourceUuid) { this.sourceUuid = sourceUuid; }
     public String getApiKeyHash() { return apiKeyHash; }
     public void setApiKeyHash(String apiKeyHash) { this.apiKeyHash = apiKeyHash; }
     public Instant getLastSyncAt() { return lastSyncAt; }

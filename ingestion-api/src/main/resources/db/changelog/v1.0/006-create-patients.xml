@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="006-create-patients" author="itechciv" failOnError="true">
+        <createTable tableName="patients" schemaName="core">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="site_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_patients_site"
+                             references="core.sites(id)"/>
+            </column>
+            <column name="source_uuid" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sex" type="CHAR(1)"/>
+            <column name="birth_date" type="DATE"/>
+            <column name="birth_date_estimated" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="birth_place" type="VARCHAR(255)"/>
+            <column name="profession" type="VARCHAR(100)"/>
+            <column name="education_level" type="VARCHAR(50)"/>
+            <column name="marital_status" type="VARCHAR(50)"/>
+            <column name="religion" type="VARCHAR(50)"/>
+            <column name="voided" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="voided_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="patients" schemaName="core"
+                             columnNames="site_id, source_uuid"
+                             constraintName="uq_patients_site_source"/>
+
+        <sql>
+            ALTER TABLE core.patients ADD CONSTRAINT chk_patients_sex CHECK (sex IN ('M','F','U'));
+        </sql>
+
+        <rollback>
+            <dropTable tableName="patients" schemaName="core"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
