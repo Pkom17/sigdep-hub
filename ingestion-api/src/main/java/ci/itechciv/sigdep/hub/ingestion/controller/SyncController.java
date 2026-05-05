@@ -5,6 +5,7 @@ import ci.itechciv.sigdep.contracts.SyncBatchRequest;
 import ci.itechciv.sigdep.contracts.SyncBatchResponse;
 import ci.itechciv.sigdep.contracts.dto.ClosureDto;
 import ci.itechciv.sigdep.contracts.dto.DispensationDto;
+import ci.itechciv.sigdep.contracts.dto.LabResultDto;
 import ci.itechciv.sigdep.contracts.dto.PatientDto;
 import ci.itechciv.sigdep.contracts.dto.TreatmentInitiationDto;
 import ci.itechciv.sigdep.contracts.dto.VisitDto;
@@ -13,6 +14,7 @@ import ci.itechciv.sigdep.hub.domain.repository.SiteRepository;
 import ci.itechciv.sigdep.hub.domain.service.SiteResolver;
 import ci.itechciv.sigdep.hub.ingestion.writer.ClosureWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.InitiationWriter;
+import ci.itechciv.sigdep.hub.ingestion.writer.LabResultWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.PatientWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.VisitWriter;
 import java.util.List;
@@ -37,19 +39,22 @@ public class SyncController {
     private final VisitWriter visitWriter;
     private final InitiationWriter initiationWriter;
     private final ClosureWriter closureWriter;
+    private final LabResultWriter labResultWriter;
 
     public SyncController(SiteResolver siteResolver,
                           SiteRepository sites,
                           PatientWriter patientWriter,
                           VisitWriter visitWriter,
                           InitiationWriter initiationWriter,
-                          ClosureWriter closureWriter) {
+                          ClosureWriter closureWriter,
+                          LabResultWriter labResultWriter) {
         this.siteResolver = siteResolver;
         this.sites = sites;
         this.patientWriter = patientWriter;
         this.visitWriter = visitWriter;
         this.initiationWriter = initiationWriter;
         this.closureWriter = closureWriter;
+        this.labResultWriter = labResultWriter;
     }
 
     @PostMapping("/patients")
@@ -99,6 +104,19 @@ public class SyncController {
                 batch.records().size(), site.getCode(), batch.batchId());
 
         var result = closureWriter.upsertBatch(site.getId(), batch.records());
+        sites.touchLastSyncAt(site.getId());
+
+        return ResponseEntity.ok(new SyncBatchResponse(
+                batch.batchId(), result.accepted(), result.rejected(), result.errors()));
+    }
+
+    @PostMapping("/lab_results")
+    public ResponseEntity<SyncBatchResponse> ingestLabResults(@RequestBody SyncBatchRequest<LabResultDto> batch) {
+        Site site = siteResolver.resolve(batch.siteCode(), null);
+        log.info("Ingesting {} lab results for site {} (batch {})",
+                batch.records().size(), site.getCode(), batch.batchId());
+
+        var result = labResultWriter.upsertBatch(site.getId(), batch.records());
         sites.touchLastSyncAt(site.getId());
 
         return ResponseEntity.ok(new SyncBatchResponse(

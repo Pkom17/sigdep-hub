@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Lab results model: one row per (encounter, concept). A "Biologie-Bilan"
+      encounter on the source side typically yields several rows here (one
+      for CD4, one for viral load, one for hemoglobin, …). This generic
+      shape lets us add new tests without any schema change, and PEPFAR
+      indicators (TX_PVLS = % VL suppressed) become trivial filters.
+
+      source_uuid = obs.uuid (one obs == one lab line). encounter_source_uuid
+      kept around so the console can group results back into the original bilan.
+    -->
+    <changeSet id="024-create-lab-results" author="itechciv" failOnError="true">
+        <createTable tableName="lab_results" schemaName="core">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="patient_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_lab_patient"
+                             references="core.patients(id)"/>
+            </column>
+            <column name="site_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_lab_site"
+                             references="core.sites(id)"/>
+            </column>
+            <column name="source_uuid" type="UUID"
+                    remarks="obs.uuid — one obs == one lab line">
+                <constraints nullable="false"/>
+            </column>
+            <column name="encounter_source_uuid" type="UUID"
+                    remarks="encounter.uuid of the Biologie-Bilan that produced this line">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- Test identity (kept by both UUID and resolved name so the
+                 console can filter by either) -->
+            <column name="test_uuid" type="VARCHAR(38)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="test_name" type="VARCHAR(255)"/>
+
+            <column name="exam_date" type="DATE"
+                    remarks="encounter_datetime of the bilan"/>
+
+            <!-- Result value: at most one of these is non-null per row -->
+            <column name="value_numeric" type="DECIMAL(15,4)"/>
+            <column name="value_text" type="VARCHAR(255)"/>
+            <column name="value_coded" type="VARCHAR(255)"
+                    remarks="Resolved concept_name when value is coded (eg test result categories)"/>
+
+            <column name="unit" type="VARCHAR(50)"/>
+
+            <column name="voided" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="lab_results" schemaName="core"
+                             columnNames="site_id, source_uuid"
+                             constraintName="uq_lab_site_source"/>
+
+        <createIndex tableName="lab_results" schemaName="core" indexName="idx_lab_patient_date">
+            <column name="patient_id"/>
+            <column name="exam_date" descending="true"/>
+        </createIndex>
+        <createIndex tableName="lab_results" schemaName="core" indexName="idx_lab_test_date">
+            <column name="test_uuid"/>
+            <column name="exam_date" descending="true"/>
+        </createIndex>
+        <createIndex tableName="lab_results" schemaName="core" indexName="idx_lab_encounter">
+            <column name="encounter_source_uuid"/>
+        </createIndex>
+        <createIndex tableName="lab_results" schemaName="core" indexName="idx_lab_site_date">
+            <column name="site_id"/>
+            <column name="exam_date" descending="true"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="lab_results" schemaName="core"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
