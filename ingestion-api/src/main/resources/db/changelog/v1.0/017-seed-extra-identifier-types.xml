@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Two extra identifier types observed in real SIGDEP-3 OpenMRS instances:
+        - CODE_ARV_OLD: legacy ARV code from "2.Ancienne Nomenclature de PEC VIH",
+          kept alongside CODE_ARV during the migration window between the
+          old and the new nomenclature.
+        - CRUID: another patient-level identifier present in patient_identifier_type.
+    -->
+    <changeSet id="017-seed-extra-identifier-types" author="itechciv" runOnChange="true">
+        <sql>
+            INSERT INTO core.identifier_types (code, name) VALUES
+              ('CODE_ARV_OLD', 'Code ARV (Ancienne Nomenclature)'),
+              ('CRUID',        'CRUID')
+            ON CONFLICT (code) DO NOTHING;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
