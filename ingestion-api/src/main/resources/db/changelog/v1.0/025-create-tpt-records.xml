@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      TB Preventive Therapy records. One row per encounter of types
+      'PEC - Suivi TPT' (id=17, FOLLOWUP) and 'PEC - Issue TPT' (id=18,
+      OUTCOME). The form has 218 concepts but most are signs/symptoms
+      that go in extra_data; only the columns useful for PEPFAR TB_PREV
+      and basic clinical follow-up are promoted.
+
+      tpt_start_date / tpt_protocol / tpt_pyridoxine are not yet mapped
+      because the SIGDEP-3 specific concepts for those (165307, 165311,
+      etc.) were not resolvable in the test instance — they'll be promoted
+      from extra_data once their UUIDs are confirmed.
+    -->
+    <changeSet id="025-create-tpt-records" author="itechciv" failOnError="true">
+        <createTable tableName="tpt_records" schemaName="core">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="patient_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_tpt_patient"
+                             references="core.patients(id)"/>
+            </column>
+            <column name="site_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_tpt_site"
+                             references="core.sites(id)"/>
+            </column>
+            <column name="source_uuid" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="record_type" type="VARCHAR(20)"
+                    remarks="FOLLOWUP (encounter type 17) or OUTCOME (type 18)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="record_date" type="DATE"
+                    remarks="encounter_datetime"/>
+
+            <!-- TPT lifecycle -->
+            <column name="tpt_followup_date" type="DATE"
+                    remarks="Date de visite TPT (concept 165234)"/>
+            <column name="tpt_end_date" type="DATE"
+                    remarks="Date de fin du TPT (concept 165202)"/>
+            <column name="tpt_outcome" type="VARCHAR(100)"
+                    remarks="Issue TPT (concept 165243): completed, defaulted, transferred, died, …"/>
+            <column name="tpt_order_number" type="VARCHAR(50)"
+                    remarks="Numero d'ordre TPT (concept 165244)"/>
+
+            <!-- Clinical -->
+            <column name="adherence" type="VARCHAR(100)"
+                    remarks="Observation du traitement préventif TB (concept 165200)"/>
+            <column name="weight_kg" type="DECIMAL(5,2)"/>
+            <column name="next_visit_date" type="DATE"/>
+
+            <column name="extra_data" type="JSONB"
+                    remarks="Catch-all for the many TPT signs/symptoms concepts and unmapped fields"/>
+
+            <column name="voided" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="tpt_records" schemaName="core"
+                             columnNames="site_id, source_uuid"
+                             constraintName="uq_tpt_site_source"/>
+
+        <createIndex tableName="tpt_records" schemaName="core" indexName="idx_tpt_patient_date">
+            <column name="patient_id"/>
+            <column name="record_date" descending="true"/>
+        </createIndex>
+        <createIndex tableName="tpt_records" schemaName="core" indexName="idx_tpt_site_date">
+            <column name="site_id"/>
+            <column name="record_date" descending="true"/>
+        </createIndex>
+        <createIndex tableName="tpt_records" schemaName="core" indexName="idx_tpt_record_type">
+            <column name="record_type"/>
+        </createIndex>
+        <sql>
+            CREATE INDEX idx_tpt_extra_gin ON core.tpt_records USING GIN (extra_data);
+        </sql>
+
+        <rollback>
+            <dropTable tableName="tpt_records" schemaName="core"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

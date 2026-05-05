@@ -7,6 +7,7 @@ import ci.itechciv.sigdep.contracts.dto.ClosureDto;
 import ci.itechciv.sigdep.contracts.dto.DispensationDto;
 import ci.itechciv.sigdep.contracts.dto.LabResultDto;
 import ci.itechciv.sigdep.contracts.dto.PatientDto;
+import ci.itechciv.sigdep.contracts.dto.TptRecordDto;
 import ci.itechciv.sigdep.contracts.dto.TreatmentInitiationDto;
 import ci.itechciv.sigdep.contracts.dto.VisitDto;
 import ci.itechciv.sigdep.hub.domain.entity.Site;
@@ -16,6 +17,7 @@ import ci.itechciv.sigdep.hub.ingestion.writer.ClosureWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.InitiationWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.LabResultWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.PatientWriter;
+import ci.itechciv.sigdep.hub.ingestion.writer.TptWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.VisitWriter;
 import java.util.List;
 import org.slf4j.Logger;
@@ -40,6 +42,7 @@ public class SyncController {
     private final InitiationWriter initiationWriter;
     private final ClosureWriter closureWriter;
     private final LabResultWriter labResultWriter;
+    private final TptWriter tptWriter;
 
     public SyncController(SiteResolver siteResolver,
                           SiteRepository sites,
@@ -47,7 +50,8 @@ public class SyncController {
                           VisitWriter visitWriter,
                           InitiationWriter initiationWriter,
                           ClosureWriter closureWriter,
-                          LabResultWriter labResultWriter) {
+                          LabResultWriter labResultWriter,
+                          TptWriter tptWriter) {
         this.siteResolver = siteResolver;
         this.sites = sites;
         this.patientWriter = patientWriter;
@@ -55,6 +59,7 @@ public class SyncController {
         this.initiationWriter = initiationWriter;
         this.closureWriter = closureWriter;
         this.labResultWriter = labResultWriter;
+        this.tptWriter = tptWriter;
     }
 
     @PostMapping("/patients")
@@ -117,6 +122,19 @@ public class SyncController {
                 batch.records().size(), site.getCode(), batch.batchId());
 
         var result = labResultWriter.upsertBatch(site.getId(), batch.records());
+        sites.touchLastSyncAt(site.getId());
+
+        return ResponseEntity.ok(new SyncBatchResponse(
+                batch.batchId(), result.accepted(), result.rejected(), result.errors()));
+    }
+
+    @PostMapping("/tpt_records")
+    public ResponseEntity<SyncBatchResponse> ingestTptRecords(@RequestBody SyncBatchRequest<TptRecordDto> batch) {
+        Site site = siteResolver.resolve(batch.siteCode(), null);
+        log.info("Ingesting {} TPT records for site {} (batch {})",
+                batch.records().size(), site.getCode(), batch.batchId());
+
+        var result = tptWriter.upsertBatch(site.getId(), batch.records());
         sites.touchLastSyncAt(site.getId());
 
         return ResponseEntity.ok(new SyncBatchResponse(
