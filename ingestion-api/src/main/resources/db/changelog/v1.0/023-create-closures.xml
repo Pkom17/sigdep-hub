@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Patient closure / "Cloture de dossier" record. One per encounter
+      of type PEC - Cloture (id=5 in OpenMRS). Concept set comes from
+      the SIGDEP-3 form 05_CLOTURE DE DOSSIER (13 useful concepts, all
+      promoted as columns — small enough that no extra_data is needed
+      yet, but the JSONB column is there for future-proofing).
+    -->
+    <changeSet id="023-create-closures" author="itechciv" failOnError="true">
+        <createTable tableName="closures" schemaName="core">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="patient_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_closure_patient"
+                             references="core.patients(id)"/>
+            </column>
+            <column name="site_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_closure_site"
+                             references="core.sites(id)"/>
+            </column>
+            <column name="source_uuid" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- Closure category, derived on the agent from one of the
+                 booleans below (transferred / auto-transferred / deceased
+                 / voluntary stop / hiv-negative). -->
+            <column name="closure_type" type="VARCHAR(50)"
+                    remarks="One of: TRANSFER, AUTO_TRANSFER, DEATH, VOLUNTARY_STOP, HIV_NEGATIVE, OTHER"/>
+            <column name="closure_date" type="DATE"
+                    remarks="encounter_datetime of the closure encounter"/>
+
+            <!-- Transfer -->
+            <column name="transfer_date" type="DATE"/>
+            <column name="transfer_destination" type="VARCHAR(255)"/>
+            <column name="transfer_reason" type="VARCHAR(255)"/>
+
+            <!-- Death -->
+            <column name="death_date" type="DATE"
+                    remarks="DATE DU DECES (declared)"/>
+            <column name="actual_death_date" type="DATE"
+                    remarks="DATE REELLE DU DECES (when known later)"/>
+            <column name="death_cause_code" type="VARCHAR(255)"
+                    remarks="Liste des causes de deces (resolved coded value)"/>
+            <column name="death_cause_text" type="VARCHAR(255)"
+                    remarks="Cause du deces (free-form)"/>
+
+            <!-- Voluntary stop / HIV negative -->
+            <column name="voluntary_stop_date" type="DATE"/>
+            <column name="hiv_negative_date" type="DATE"/>
+
+            <column name="extra_data" type="JSONB"/>
+            <column name="voided" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="closures" schemaName="core"
+                             columnNames="site_id, source_uuid"
+                             constraintName="uq_closure_site_source"/>
+
+        <createIndex tableName="closures" schemaName="core" indexName="idx_closure_patient">
+            <column name="patient_id"/>
+        </createIndex>
+        <createIndex tableName="closures" schemaName="core" indexName="idx_closure_site_date">
+            <column name="site_id"/>
+            <column name="closure_date" descending="true"/>
+        </createIndex>
+        <createIndex tableName="closures" schemaName="core" indexName="idx_closure_type">
+            <column name="closure_type"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="closures" schemaName="core"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

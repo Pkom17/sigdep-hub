@@ -29,5 +29,6 @@
     <include file="db/changelog/v1.0/020-add-visits-clinical-columns.xml"/>
     <include file="db/changelog/v1.0/021-add-initiations-clinical-columns.xml"/>
     <include file="db/changelog/v1.0/022-create-treatment-initiations-pediatric.xml"/>
+    <include file="db/changelog/v1.0/023-create-closures.xml"/>
 
 </databaseChangeLog>
