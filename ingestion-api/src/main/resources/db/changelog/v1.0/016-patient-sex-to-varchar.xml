@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Same rationale as 014: Hibernate maps a String JPA field to VARCHAR by
+      default and validates strictly. Switch CHAR(1) to VARCHAR(1) so schema
+      validation passes; the existing CHECK constraint keeps values in {M,F,U}.
+    -->
+    <changeSet id="016-patient-sex-to-varchar" author="itechciv" failOnError="true">
+        <sql>
+            ALTER TABLE core.patients
+              ALTER COLUMN sex TYPE VARCHAR(1) USING sex::VARCHAR(1);
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE core.patients ALTER COLUMN sex TYPE CHAR(1);
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

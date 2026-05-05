@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      The original UNIQUE (identifier_type_id, identifier_value) is too tight:
+      legitimate patient transfers between sites would collide. The sync layer
+      must not arbitrate identity — that's the future Master Patient Index job.
+      Scope identifier uniqueness to the issuing site instead.
+    -->
+    <changeSet id="015-relax-patient-identifiers-unique" author="itechciv" failOnError="true">
+        <dropUniqueConstraint
+                tableName="patient_identifiers"
+                schemaName="core"
+                constraintName="uq_pid_type_value"/>
+
+        <addUniqueConstraint
+                tableName="patient_identifiers"
+                schemaName="core"
+                columnNames="identifier_type_id, identifier_value, site_id"
+                constraintName="uq_pid_type_value_site"/>
+        <rollback>
+            <dropUniqueConstraint
+                    tableName="patient_identifiers"
+                    schemaName="core"
+                    constraintName="uq_pid_type_value_site"/>
+            <addUniqueConstraint
+                    tableName="patient_identifiers"
+                    schemaName="core"
+                    columnNames="identifier_type_id, identifier_value"
+                    constraintName="uq_pid_type_value"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

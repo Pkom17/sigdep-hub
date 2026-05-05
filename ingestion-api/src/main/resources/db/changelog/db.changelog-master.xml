@@ -21,5 +21,7 @@
     <include file="db/changelog/seed/013-seed-sites.xml"/>
 
     <include file="db/changelog/v1.0/014-source-uuid-to-varchar.xml"/>
+    <include file="db/changelog/v1.0/015-relax-patient-identifiers-unique.xml"/>
+    <include file="db/changelog/v1.0/016-patient-sex-to-varchar.xml"/>
 
 </databaseChangeLog>
