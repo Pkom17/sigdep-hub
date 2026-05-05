@@ -17,6 +17,12 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+/**
+ * Writes a treatment initiation row, plus propagates four profile fields
+ * (marital_status, birth_place, education_level, religion) to core.patients.
+ * Each record is upserted in its own short transaction so a single bad row
+ * doesn't poison the batch.
+ */
 @Repository
 public class InitiationWriter {
 
@@ -51,7 +57,11 @@ public class InitiationWriter {
                             "Patient " + t.patientSourceUuid() + " not yet ingested"));
                     continue;
                 }
-                tx.executeWithoutResult(status -> upsertOne(siteId, patientId, t));
+                final long pid = patientId;
+                tx.executeWithoutResult(status -> {
+                    upsertOne(siteId, pid, t);
+                    propagateProfile(pid, t);
+                });
                 accepted++;
             } catch (RuntimeException e) {
                 rejected++;
@@ -71,38 +81,107 @@ public class InitiationWriter {
                 INSERT INTO core.treatment_initiations (
                   patient_id, site_id, source_uuid,
                   enrollment_date, arv_init_date, hiv_test_date,
-                  hiv_type, entry_point, extra_data,
-                  voided, created_at, updated_at
+                  hiv_type, entry_point,
+                  who_stage_initial, cdc_stage_initial, arv_regimen_initial,
+                  weight_initial_kg, cd4_initial, cd4_pct_initial, karnofsky_score,
+                  referred, referred_origin, treatment_motive,
+                  partner_hiv_status,
+                  tb_history, arv_history, transfusion_history,
+                  ptme_history, ptme_regimen_history, ptme_history_date,
+                  extra_data, voided, created_at, updated_at
                 ) VALUES (
                   ?, ?, ?,
                   ?, ?, ?,
-                  ?, ?, ?::jsonb,
-                  ?, NOW(), NOW()
+                  ?, ?,
+                  ?, ?, ?,
+                  ?, ?, ?, ?,
+                  ?, ?, ?,
+                  ?,
+                  ?, ?, ?,
+                  ?, ?, ?,
+                  ?::jsonb, ?, NOW(), NOW()
                 )
                 ON CONFLICT (site_id, source_uuid) DO UPDATE SET
-                  enrollment_date = EXCLUDED.enrollment_date,
-                  arv_init_date   = EXCLUDED.arv_init_date,
-                  hiv_test_date   = EXCLUDED.hiv_test_date,
-                  hiv_type        = EXCLUDED.hiv_type,
-                  entry_point     = EXCLUDED.entry_point,
-                  extra_data      = EXCLUDED.extra_data,
-                  voided          = EXCLUDED.voided,
-                  updated_at      = NOW()
+                  enrollment_date      = EXCLUDED.enrollment_date,
+                  arv_init_date        = EXCLUDED.arv_init_date,
+                  hiv_test_date        = EXCLUDED.hiv_test_date,
+                  hiv_type             = EXCLUDED.hiv_type,
+                  entry_point          = EXCLUDED.entry_point,
+                  who_stage_initial    = EXCLUDED.who_stage_initial,
+                  cdc_stage_initial    = EXCLUDED.cdc_stage_initial,
+                  arv_regimen_initial  = EXCLUDED.arv_regimen_initial,
+                  weight_initial_kg    = EXCLUDED.weight_initial_kg,
+                  cd4_initial          = EXCLUDED.cd4_initial,
+                  cd4_pct_initial      = EXCLUDED.cd4_pct_initial,
+                  karnofsky_score      = EXCLUDED.karnofsky_score,
+                  referred             = EXCLUDED.referred,
+                  referred_origin      = EXCLUDED.referred_origin,
+                  treatment_motive     = EXCLUDED.treatment_motive,
+                  partner_hiv_status   = EXCLUDED.partner_hiv_status,
+                  tb_history           = EXCLUDED.tb_history,
+                  arv_history          = EXCLUDED.arv_history,
+                  transfusion_history  = EXCLUDED.transfusion_history,
+                  ptme_history         = EXCLUDED.ptme_history,
+                  ptme_regimen_history = EXCLUDED.ptme_regimen_history,
+                  ptme_history_date    = EXCLUDED.ptme_history_date,
+                  extra_data           = EXCLUDED.extra_data,
+                  voided               = EXCLUDED.voided,
+                  updated_at           = NOW()
                 """,
                 new Object[] {
                         patientId, siteId, t.sourceUuid(),
                         t.enrollmentDate() == null ? null : Date.valueOf(t.enrollmentDate()),
                         t.arvInitDate()    == null ? null : Date.valueOf(t.arvInitDate()),
                         t.hivTestDate()    == null ? null : Date.valueOf(t.hivTestDate()),
-                        t.hivType(), t.entryPoint(), extraJson,
+                        t.hivType(), t.entryPoint(),
+                        t.whoStageInitial(), t.cdcStageInitial(), t.arvRegimenInitial(),
+                        t.weightInitialKg(), t.cd4Initial(), t.cd4PctInitial(), t.karnofskyScore(),
+                        t.referred(), t.referredOrigin(), t.treatmentMotive(),
+                        t.partnerHivStatus(),
+                        t.tbHistory(), t.arvHistory(), t.transfusionHistory(),
+                        t.ptmeHistory(), t.ptmeRegimenHistory(),
+                        t.ptmeHistoryDate() == null ? null : Date.valueOf(t.ptmeHistoryDate()),
+                        extraJson,
                         Boolean.TRUE.equals(t.voided())
                 },
                 new int[] {
                         Types.BIGINT, Types.BIGINT, Types.OTHER,
                         Types.DATE, Types.DATE, Types.DATE,
+                        Types.VARCHAR, Types.VARCHAR,
                         Types.VARCHAR, Types.VARCHAR, Types.VARCHAR,
-                        Types.BOOLEAN
+                        Types.DECIMAL, Types.INTEGER, Types.DECIMAL, Types.SMALLINT,
+                        Types.VARCHAR, Types.VARCHAR, Types.VARCHAR,
+                        Types.VARCHAR,
+                        Types.VARCHAR, Types.VARCHAR, Types.VARCHAR,
+                        Types.VARCHAR, Types.VARCHAR, Types.DATE,
+                        Types.VARCHAR, Types.BOOLEAN
                 });
+    }
+
+    /**
+     * Propagate the four profile fields (marital_status, birth_place,
+     * education_level, religion) from the enrolment form to core.patients.
+     * Only updates columns where the form provided a non-null value, so we
+     * never overwrite an existing value with a missing one. updated_at gets
+     * bumped only if at least one column actually changes.
+     */
+    private void propagateProfile(long patientId, TreatmentInitiationDto t) {
+        if (t.maritalStatus() == null && t.birthPlace() == null
+                && t.educationLevel() == null && t.religion() == null) {
+            return;
+        }
+        jdbc.update(
+                """
+                UPDATE core.patients SET
+                  marital_status  = COALESCE(?, marital_status),
+                  birth_place     = COALESCE(?, birth_place),
+                  education_level = COALESCE(?, education_level),
+                  religion        = COALESCE(?, religion),
+                  updated_at      = NOW()
+                WHERE id = ?
+                """,
+                t.maritalStatus(), t.birthPlace(), t.educationLevel(), t.religion(),
+                patientId);
     }
 
     private String writeJson(Object o) {

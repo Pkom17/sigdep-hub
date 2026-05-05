@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Promote ~20 enrolment-time concepts from extra_data into dedicated
+      columns on core.treatment_initiations, derived from the SIGDEP-3
+      "Fiche initiale adulte" HTML form. Concept UUIDs are documented in
+      InitiationExtractor for traceability.
+
+      Children-specific fields go into a separate core.treatment_initiations_pediatric
+      extension table — added in a later migration.
+    -->
+    <changeSet id="021-add-initiations-clinical-columns" author="itechciv" failOnError="true">
+        <addColumn tableName="treatment_initiations" schemaName="core">
+            <!-- Enrolment-time clinical snapshot -->
+            <column name="who_stage_initial" type="VARCHAR(100)"/>
+            <column name="cdc_stage_initial" type="VARCHAR(100)"/>
+            <column name="arv_regimen_initial" type="VARCHAR(100)"/>
+            <column name="weight_initial_kg" type="DECIMAL(5,2)"/>
+            <column name="cd4_initial" type="INT"/>
+            <column name="cd4_pct_initial" type="DECIMAL(4,1)"/>
+            <column name="karnofsky_score" type="SMALLINT"/>
+
+            <!-- Patient pathway / referral -->
+            <column name="referred" type="VARCHAR(100)"
+                    remarks="Resolved coded value of 'PATIENT REFERE'"/>
+            <column name="referred_origin" type="VARCHAR(255)"/>
+            <column name="treatment_motive" type="VARCHAR(255)"/>
+
+            <!-- Partner / counselling -->
+            <column name="partner_hiv_status" type="VARCHAR(100)"/>
+
+            <!-- Antecedents -->
+            <column name="tb_history" type="VARCHAR(100)"/>
+            <column name="arv_history" type="VARCHAR(100)"/>
+            <column name="transfusion_history" type="VARCHAR(100)"/>
+
+            <!-- PTME history -->
+            <column name="ptme_history" type="VARCHAR(100)"/>
+            <column name="ptme_regimen_history" type="VARCHAR(100)"/>
+            <column name="ptme_history_date" type="DATE"/>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="who_stage_initial"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="cdc_stage_initial"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="arv_regimen_initial"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="weight_initial_kg"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="cd4_initial"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="cd4_pct_initial"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="karnofsky_score"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="referred"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="referred_origin"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="treatment_motive"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="partner_hiv_status"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="tb_history"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="arv_history"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="transfusion_history"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="ptme_history"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="ptme_regimen_history"/>
+            <dropColumn tableName="treatment_initiations" schemaName="core" columnName="ptme_history_date"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
