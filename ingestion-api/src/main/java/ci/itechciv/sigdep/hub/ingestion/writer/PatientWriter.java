@@ -15,7 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Repository
 public class PatientWriter {
@@ -25,13 +26,16 @@ public class PatientWriter {
     private final JdbcTemplate jdbc;
     private final IdentifierTypeRepository identifierTypes;
     private final Map<String, Integer> identifierTypeIdByCode = new HashMap<>();
+    private final TransactionTemplate tx;
 
-    public PatientWriter(JdbcTemplate jdbc, IdentifierTypeRepository identifierTypes) {
+    public PatientWriter(JdbcTemplate jdbc,
+                         IdentifierTypeRepository identifierTypes,
+                         PlatformTransactionManager txManager) {
         this.jdbc = jdbc;
         this.identifierTypes = identifierTypes;
+        this.tx = new TransactionTemplate(txManager);
     }
 
-    @Transactional
     public BatchResult upsertBatch(long siteId, List<PatientDto> batch) {
         int accepted = 0;
         int rejected = 0;
@@ -39,8 +43,10 @@ public class PatientWriter {
 
         for (PatientDto p : batch) {
             try {
-                long patientId = upsertPatient(siteId, p);
-                upsertIdentifiers(siteId, patientId, p.identifiers());
+                tx.executeWithoutResult(status -> {
+                    long patientId = upsertPatient(siteId, p);
+                    upsertIdentifiers(siteId, patientId, p.identifiers());
+                });
                 accepted++;
             } catch (RuntimeException e) {
                 rejected++;

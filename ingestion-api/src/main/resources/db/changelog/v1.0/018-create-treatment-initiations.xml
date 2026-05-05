@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Treatment initiation = "PEC - Ouverture de dossier" in OpenMRS speak.
+      One row per patient enrollment; subsequent visits land in core.visits.
+      Identified by (site_id, source_uuid) of the OpenMRS encounter.
+    -->
+    <changeSet id="018-create-treatment-initiations" author="itechciv" failOnError="true">
+        <createTable tableName="treatment_initiations" schemaName="core">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="patient_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_init_patient"
+                             references="core.patients(id)"/>
+            </column>
+            <column name="site_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_init_site"
+                             references="core.sites(id)"/>
+            </column>
+            <column name="source_uuid" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="enrollment_date" type="DATE"
+                    remarks="encounter_datetime of the 'Ouverture de dossier' visit"/>
+            <column name="arv_init_date" type="DATE"/>
+            <column name="hiv_test_date" type="DATE"/>
+            <column name="hiv_type" type="VARCHAR(20)"
+                    remarks="Resolved concept name when value_coded is set; raw value otherwise"/>
+            <column name="entry_point" type="VARCHAR(100)"/>
+
+            <column name="extra_data" type="JSONB"
+                    remarks="Catch-all for unmapped concepts, keyed by concept UUID"/>
+
+            <column name="voided" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="treatment_initiations" schemaName="core"
+                             columnNames="site_id, source_uuid"
+                             constraintName="uq_init_site_source"/>
+
+        <createIndex tableName="treatment_initiations" schemaName="core"
+                     indexName="idx_init_patient">
+            <column name="patient_id"/>
+        </createIndex>
+        <sql>
+            CREATE INDEX idx_init_extra_gin ON core.treatment_initiations USING GIN (extra_data);
+        </sql>
+
+        <rollback>
+            <dropTable tableName="treatment_initiations" schemaName="core"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

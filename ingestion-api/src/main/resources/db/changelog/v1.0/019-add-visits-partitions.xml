@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      core.visits is PARTITION BY RANGE (visit_date). Migration 008 only
+      shipped 2025 and 2026 partitions, but real OpenMRS instances hold
+      visits going back to 2010+. Add a wide range of yearly partitions so
+      backfills don't fail with "no partition of relation visits found".
+    -->
+    <changeSet id="019-add-visits-partitions" author="itechciv" failOnError="true">
+        <sql splitStatements="true">
+            CREATE TABLE IF NOT EXISTS core.visits_2010 PARTITION OF core.visits FOR VALUES FROM ('2010-01-01') TO ('2011-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2011 PARTITION OF core.visits FOR VALUES FROM ('2011-01-01') TO ('2012-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2012 PARTITION OF core.visits FOR VALUES FROM ('2012-01-01') TO ('2013-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2013 PARTITION OF core.visits FOR VALUES FROM ('2013-01-01') TO ('2014-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2014 PARTITION OF core.visits FOR VALUES FROM ('2014-01-01') TO ('2015-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2015 PARTITION OF core.visits FOR VALUES FROM ('2015-01-01') TO ('2016-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2016 PARTITION OF core.visits FOR VALUES FROM ('2016-01-01') TO ('2017-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2017 PARTITION OF core.visits FOR VALUES FROM ('2017-01-01') TO ('2018-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2018 PARTITION OF core.visits FOR VALUES FROM ('2018-01-01') TO ('2019-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2019 PARTITION OF core.visits FOR VALUES FROM ('2019-01-01') TO ('2020-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2020 PARTITION OF core.visits FOR VALUES FROM ('2020-01-01') TO ('2021-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2021 PARTITION OF core.visits FOR VALUES FROM ('2021-01-01') TO ('2022-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2022 PARTITION OF core.visits FOR VALUES FROM ('2022-01-01') TO ('2023-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2023 PARTITION OF core.visits FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2024 PARTITION OF core.visits FOR VALUES FROM ('2024-01-01') TO ('2025-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2027 PARTITION OF core.visits FOR VALUES FROM ('2027-01-01') TO ('2028-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2028 PARTITION OF core.visits FOR VALUES FROM ('2028-01-01') TO ('2029-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2029 PARTITION OF core.visits FOR VALUES FROM ('2029-01-01') TO ('2030-01-01');
+            CREATE TABLE IF NOT EXISTS core.visits_2030 PARTITION OF core.visits FOR VALUES FROM ('2030-01-01') TO ('2031-01-01');
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
