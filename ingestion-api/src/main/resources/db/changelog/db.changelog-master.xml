@@ -26,5 +26,6 @@
     <include file="db/changelog/v1.0/017-seed-extra-identifier-types.xml"/>
     <include file="db/changelog/v1.0/018-create-treatment-initiations.xml"/>
     <include file="db/changelog/v1.0/019-add-visits-partitions.xml"/>
+    <include file="db/changelog/v1.0/020-add-visits-clinical-columns.xml"/>
 
 </databaseChangeLog>

@@ -20,9 +20,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Each record is upserted in its own short transaction so a single bad row
  * (e.g. a visit_date with no matching partition) doesn't poison the whole
- * batch. The PostgreSQL "current transaction is aborted" error after the
- * first failure was the symptom — see commit-time investigation in
- * VisitWriter for the partitioning issue that surfaced this.
+ * batch.
  */
 @Repository
 public class VisitWriter {
@@ -81,7 +79,13 @@ public class VisitWriter {
                   tb_treatment_status, tb_treatment_start_date,
                   who_stage, cdc_stage, ctx_prescribed, ctx_start_date,
                   ivsa_success_confirmation_date, is_pregnant, is_breastfeeding,
-                  weight_kg, height_cm, extra_data, voided,
+                  weight_kg, height_cm, bmi, mid_upper_arm_circumference,
+                  arv_regimen, arv_treatment_days, cotrim_treatment_days,
+                  temperature_c, pulse, respiratory_rate,
+                  bp_systolic, bp_diastolic,
+                  viral_load, viral_load_date, cd4_count, cd4_date,
+                  breastfeeding_status,
+                  extra_data, voided,
                   created_at, updated_at
                 ) VALUES (
                   ?, ?, ?, ?, ?,
@@ -89,27 +93,48 @@ public class VisitWriter {
                   ?, ?,
                   ?, ?, ?, ?,
                   ?, ?, ?,
-                  ?, ?, ?::jsonb, ?,
+                  ?, ?, ?, ?,
+                  ?, ?, ?,
+                  ?, ?, ?,
+                  ?, ?,
+                  ?, ?, ?, ?,
+                  ?,
+                  ?::jsonb, ?,
                   NOW(), NOW()
                 )
                 ON CONFLICT (site_id, source_uuid, visit_date) DO UPDATE SET
-                  next_visit_date          = EXCLUDED.next_visit_date,
-                  tb_screening_result      = EXCLUDED.tb_screening_result,
-                  tb_diagnosed             = EXCLUDED.tb_diagnosed,
-                  tb_treatment_status      = EXCLUDED.tb_treatment_status,
-                  tb_treatment_start_date  = EXCLUDED.tb_treatment_start_date,
-                  who_stage                = EXCLUDED.who_stage,
-                  cdc_stage                = EXCLUDED.cdc_stage,
-                  ctx_prescribed           = EXCLUDED.ctx_prescribed,
-                  ctx_start_date           = EXCLUDED.ctx_start_date,
+                  next_visit_date                = EXCLUDED.next_visit_date,
+                  tb_screening_result            = EXCLUDED.tb_screening_result,
+                  tb_diagnosed                   = EXCLUDED.tb_diagnosed,
+                  tb_treatment_status            = EXCLUDED.tb_treatment_status,
+                  tb_treatment_start_date        = EXCLUDED.tb_treatment_start_date,
+                  who_stage                      = EXCLUDED.who_stage,
+                  cdc_stage                      = EXCLUDED.cdc_stage,
+                  ctx_prescribed                 = EXCLUDED.ctx_prescribed,
+                  ctx_start_date                 = EXCLUDED.ctx_start_date,
                   ivsa_success_confirmation_date = EXCLUDED.ivsa_success_confirmation_date,
-                  is_pregnant              = EXCLUDED.is_pregnant,
-                  is_breastfeeding         = EXCLUDED.is_breastfeeding,
-                  weight_kg                = EXCLUDED.weight_kg,
-                  height_cm                = EXCLUDED.height_cm,
-                  extra_data               = EXCLUDED.extra_data,
-                  voided                   = EXCLUDED.voided,
-                  updated_at               = NOW()
+                  is_pregnant                    = EXCLUDED.is_pregnant,
+                  is_breastfeeding               = EXCLUDED.is_breastfeeding,
+                  weight_kg                      = EXCLUDED.weight_kg,
+                  height_cm                      = EXCLUDED.height_cm,
+                  bmi                            = EXCLUDED.bmi,
+                  mid_upper_arm_circumference    = EXCLUDED.mid_upper_arm_circumference,
+                  arv_regimen                    = EXCLUDED.arv_regimen,
+                  arv_treatment_days             = EXCLUDED.arv_treatment_days,
+                  cotrim_treatment_days          = EXCLUDED.cotrim_treatment_days,
+                  temperature_c                  = EXCLUDED.temperature_c,
+                  pulse                          = EXCLUDED.pulse,
+                  respiratory_rate               = EXCLUDED.respiratory_rate,
+                  bp_systolic                    = EXCLUDED.bp_systolic,
+                  bp_diastolic                   = EXCLUDED.bp_diastolic,
+                  viral_load                     = EXCLUDED.viral_load,
+                  viral_load_date                = EXCLUDED.viral_load_date,
+                  cd4_count                      = EXCLUDED.cd4_count,
+                  cd4_date                       = EXCLUDED.cd4_date,
+                  breastfeeding_status           = EXCLUDED.breastfeeding_status,
+                  extra_data                     = EXCLUDED.extra_data,
+                  voided                         = EXCLUDED.voided,
+                  updated_at                     = NOW()
                 """,
                 new Object[] {
                         patientId, siteId, v.sourceUuid(), v.sourceForm(),
@@ -122,7 +147,15 @@ public class VisitWriter {
                         v.ctxStartDate() == null ? null : Date.valueOf(v.ctxStartDate()),
                         v.ivsaSuccessConfirmationDate() == null ? null : Date.valueOf(v.ivsaSuccessConfirmationDate()),
                         v.isPregnant(), v.isBreastfeeding(),
-                        v.weightKg(), v.heightCm(),
+                        v.weightKg(), v.heightCm(), v.bmi(), v.midUpperArmCircumference(),
+                        v.arvRegimen(), v.arvTreatmentDays(), v.cotrimTreatmentDays(),
+                        v.temperatureC(), v.pulse(), v.respiratoryRate(),
+                        v.bpSystolic(), v.bpDiastolic(),
+                        v.viralLoad(),
+                        v.viralLoadDate() == null ? null : Date.valueOf(v.viralLoadDate()),
+                        v.cd4Count(),
+                        v.cd4Date() == null ? null : Date.valueOf(v.cd4Date()),
+                        v.breastfeedingStatus(),
                         extraJson,
                         Boolean.TRUE.equals(v.voided())
                 },
@@ -132,7 +165,13 @@ public class VisitWriter {
                         Types.VARCHAR, Types.DATE,
                         Types.SMALLINT, Types.VARCHAR, Types.BOOLEAN, Types.DATE,
                         Types.DATE, Types.BOOLEAN, Types.BOOLEAN,
-                        Types.DECIMAL, Types.DECIMAL, Types.VARCHAR, Types.BOOLEAN
+                        Types.DECIMAL, Types.DECIMAL, Types.DECIMAL, Types.DECIMAL,
+                        Types.VARCHAR, Types.SMALLINT, Types.SMALLINT,
+                        Types.DECIMAL, Types.SMALLINT, Types.SMALLINT,
+                        Types.SMALLINT, Types.SMALLINT,
+                        Types.DECIMAL, Types.DATE, Types.INTEGER, Types.DATE,
+                        Types.VARCHAR,
+                        Types.VARCHAR, Types.BOOLEAN
                 });
     }
 

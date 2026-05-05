@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Promote 12 clinically important concepts from extra_data into dedicated
+      columns, derived from the SIGDEP-3 "Fiche de Suivi" HTML form. The four
+      already-mapped columns (weight_kg, height_cm, who_stage, next_visit_date)
+      stay as-is. Concept UUIDs are documented in VisitExtractor for traceability.
+    -->
+    <changeSet id="020-add-visits-clinical-columns" author="itechciv" failOnError="true">
+        <addColumn tableName="visits" schemaName="core">
+            <!-- ARV regimen on this visit (resolved concept name, e.g. "TDF/3TC/DTG") -->
+            <column name="arv_regimen" type="VARCHAR(100)"/>
+
+            <!-- Vital signs -->
+            <column name="temperature_c" type="DECIMAL(4,1)"/>
+            <column name="pulse" type="SMALLINT"/>
+            <column name="respiratory_rate" type="SMALLINT"/>
+            <column name="bp_systolic" type="SMALLINT"/>
+            <column name="bp_diastolic" type="SMALLINT"/>
+            <column name="bmi" type="DECIMAL(4,1)"/>
+            <column name="mid_upper_arm_circumference" type="DECIMAL(4,1)"
+                    remarks="Périmètre brachial (cm)"/>
+
+            <!-- HIV monitoring on this visit -->
+            <column name="viral_load" type="DECIMAL(15,2)"
+                    remarks="VIH charge virale (copies/mL)"/>
+            <column name="viral_load_date" type="DATE"/>
+            <column name="cd4_count" type="INT"
+                    remarks="Patient-reported CD4 count (cells/mm3)"/>
+            <column name="cd4_date" type="DATE"/>
+
+            <!-- Treatment days reported on this visit -->
+            <column name="arv_treatment_days" type="SMALLINT"/>
+            <column name="cotrim_treatment_days" type="SMALLINT"/>
+
+            <!-- Resolved coded value for "Allaitement en cours"; the existing
+                 is_breastfeeding boolean stays for backward compatibility -->
+            <column name="breastfeeding_status" type="VARCHAR(100)"/>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="visits" schemaName="core" columnName="arv_regimen"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="temperature_c"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="pulse"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="respiratory_rate"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="bp_systolic"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="bp_diastolic"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="bmi"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="mid_upper_arm_circumference"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="viral_load"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="viral_load_date"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="cd4_count"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="cd4_date"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="arv_treatment_days"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="cotrim_treatment_days"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="breastfeeding_status"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
