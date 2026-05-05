@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Pediatric extension of core.treatment_initiations.
+      One row per parent initiation when the source enrolment carried at
+      least one pediatric-specific obs (birth weight, mother PTME status,
+      …). Linked 1-1 to core.treatment_initiations.id (CASCADE on delete
+      of the parent).
+
+      Names + phone numbers + free-text addresses of parents/guardians are
+      *not* included by design (PII policy, see spec §6.4).
+    -->
+    <changeSet id="022-create-treatment-initiations-pediatric" author="itechciv" failOnError="true">
+        <createTable tableName="treatment_initiations_pediatric" schemaName="core">
+            <column name="initiation_id" type="BIGINT">
+                <constraints primaryKey="true" nullable="false"
+                             foreignKeyName="fk_init_pedia_init"
+                             references="core.treatment_initiations(id)"
+                             deleteCascade="true"/>
+            </column>
+
+            <!-- Birth / clinical baby snapshot -->
+            <column name="birth_weight_kg" type="DECIMAL(5,2)"/>
+            <column name="birth_length_cm" type="DECIMAL(5,2)"/>
+            <column name="head_circumference_cm" type="DECIMAL(4,1)"/>
+            <column name="apgar_score" type="SMALLINT"/>
+            <column name="delivery_mode" type="VARCHAR(100)"/>
+            <column name="delivered_at_facility" type="VARCHAR(100)"/>
+
+            <!-- Mother PTME -->
+            <column name="mother_received_ptme" type="VARCHAR(100)"/>
+            <column name="mother_hiv_status" type="VARCHAR(100)"/>
+            <column name="mother_vital_status" type="VARCHAR(100)"/>
+            <column name="mother_ptme_regimen" type="VARCHAR(100)"/>
+            <column name="infant_arv_prophylaxis_given" type="VARCHAR(100)"/>
+            <column name="infant_arv_protocol" type="VARCHAR(100)"/>
+
+            <!-- Nutrition / suivi initial -->
+            <column name="feeding_mode" type="VARCHAR(100)"/>
+            <column name="weaning_date" type="DATE"/>
+            <column name="vaccinations" type="VARCHAR(255)"/>
+
+            <!-- Family / context (coded values only — no PII) -->
+            <column name="father_vital_status" type="VARCHAR(100)"/>
+            <column name="father_education_level" type="VARCHAR(100)"/>
+            <column name="father_activity_type" type="VARCHAR(100)"/>
+            <column name="mother_education_level" type="VARCHAR(100)"/>
+            <column name="mother_activity_type" type="VARCHAR(100)"/>
+            <column name="guardian_vital_status" type="VARCHAR(100)"/>
+            <column name="guardian_education_level" type="VARCHAR(100)"/>
+            <column name="guardian_activity_type" type="VARCHAR(100)"/>
+            <column name="guardian_hiv_status" type="VARCHAR(100)"/>
+
+            <!-- Other -->
+            <column name="admission_date" type="DATE"/>
+            <column name="schooling_status" type="VARCHAR(100)"/>
+            <column name="screening_code" type="VARCHAR(50)"
+                    remarks="Code dépistage client (164072) — non-identifiant"/>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <rollback>
+            <dropTable tableName="treatment_initiations_pediatric" schemaName="core"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -2,12 +2,12 @@ package ci.itechciv.sigdep.hub.ingestion.writer;
 
 import ci.itechciv.sigdep.contracts.SyncBatchResponse;
 import ci.itechciv.sigdep.contracts.SyncBatchResponse.RecordError;
+import ci.itechciv.sigdep.contracts.dto.PediatricInitiationDto;
 import ci.itechciv.sigdep.contracts.dto.TreatmentInitiationDto;
 import ci.itechciv.sigdep.hub.domain.service.PatientResolver;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Date;
-import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
@@ -59,8 +59,11 @@ public class InitiationWriter {
                 }
                 final long pid = patientId;
                 tx.executeWithoutResult(status -> {
-                    upsertOne(siteId, pid, t);
+                    long initiationId = upsertOne(siteId, pid, t);
                     propagateProfile(pid, t);
+                    if (t.pediatric() != null) {
+                        upsertPediatric(initiationId, t.pediatric());
+                    }
                 });
                 accepted++;
             } catch (RuntimeException e) {
@@ -73,10 +76,10 @@ public class InitiationWriter {
         return new BatchResult(accepted, rejected, errors);
     }
 
-    private void upsertOne(long siteId, long patientId, TreatmentInitiationDto t) {
+    private long upsertOne(long siteId, long patientId, TreatmentInitiationDto t) {
         String extraJson = t.extraData() == null ? null : writeJson(t.extraData());
 
-        jdbc.update(
+        return jdbc.queryForObject(
                 """
                 INSERT INTO core.treatment_initiations (
                   patient_id, site_id, source_uuid,
@@ -127,35 +130,103 @@ public class InitiationWriter {
                   extra_data           = EXCLUDED.extra_data,
                   voided               = EXCLUDED.voided,
                   updated_at           = NOW()
+                RETURNING id
                 """,
-                new Object[] {
-                        patientId, siteId, t.sourceUuid(),
-                        t.enrollmentDate() == null ? null : Date.valueOf(t.enrollmentDate()),
-                        t.arvInitDate()    == null ? null : Date.valueOf(t.arvInitDate()),
-                        t.hivTestDate()    == null ? null : Date.valueOf(t.hivTestDate()),
-                        t.hivType(), t.entryPoint(),
-                        t.whoStageInitial(), t.cdcStageInitial(), t.arvRegimenInitial(),
-                        t.weightInitialKg(), t.cd4Initial(), t.cd4PctInitial(), t.karnofskyScore(),
-                        t.referred(), t.referredOrigin(), t.treatmentMotive(),
-                        t.partnerHivStatus(),
-                        t.tbHistory(), t.arvHistory(), t.transfusionHistory(),
-                        t.ptmeHistory(), t.ptmeRegimenHistory(),
-                        t.ptmeHistoryDate() == null ? null : Date.valueOf(t.ptmeHistoryDate()),
-                        extraJson,
-                        Boolean.TRUE.equals(t.voided())
-                },
-                new int[] {
-                        Types.BIGINT, Types.BIGINT, Types.OTHER,
-                        Types.DATE, Types.DATE, Types.DATE,
-                        Types.VARCHAR, Types.VARCHAR,
-                        Types.VARCHAR, Types.VARCHAR, Types.VARCHAR,
-                        Types.DECIMAL, Types.INTEGER, Types.DECIMAL, Types.SMALLINT,
-                        Types.VARCHAR, Types.VARCHAR, Types.VARCHAR,
-                        Types.VARCHAR,
-                        Types.VARCHAR, Types.VARCHAR, Types.VARCHAR,
-                        Types.VARCHAR, Types.VARCHAR, Types.DATE,
-                        Types.VARCHAR, Types.BOOLEAN
-                });
+                Long.class,
+                patientId, siteId, t.sourceUuid(),
+                t.enrollmentDate() == null ? null : Date.valueOf(t.enrollmentDate()),
+                t.arvInitDate()    == null ? null : Date.valueOf(t.arvInitDate()),
+                t.hivTestDate()    == null ? null : Date.valueOf(t.hivTestDate()),
+                t.hivType(), t.entryPoint(),
+                t.whoStageInitial(), t.cdcStageInitial(), t.arvRegimenInitial(),
+                t.weightInitialKg(), t.cd4Initial(), t.cd4PctInitial(), t.karnofskyScore(),
+                t.referred(), t.referredOrigin(), t.treatmentMotive(),
+                t.partnerHivStatus(),
+                t.tbHistory(), t.arvHistory(), t.transfusionHistory(),
+                t.ptmeHistory(), t.ptmeRegimenHistory(),
+                t.ptmeHistoryDate() == null ? null : Date.valueOf(t.ptmeHistoryDate()),
+                extraJson,
+                Boolean.TRUE.equals(t.voided()));
+    }
+
+    /**
+     * Upsert the pediatric extension. INSERT...ON CONFLICT (initiation_id)
+     * keeps the table 1-1 with the parent and idempotent on replay.
+     */
+    private void upsertPediatric(long initiationId, PediatricInitiationDto p) {
+        jdbc.update(
+                """
+                INSERT INTO core.treatment_initiations_pediatric (
+                  initiation_id,
+                  birth_weight_kg, birth_length_cm, head_circumference_cm,
+                  apgar_score, delivery_mode, delivered_at_facility,
+                  mother_received_ptme, mother_hiv_status, mother_vital_status,
+                  mother_ptme_regimen, infant_arv_prophylaxis_given, infant_arv_protocol,
+                  feeding_mode, weaning_date, vaccinations,
+                  father_vital_status, father_education_level, father_activity_type,
+                  mother_education_level, mother_activity_type,
+                  guardian_vital_status, guardian_education_level, guardian_activity_type,
+                  guardian_hiv_status,
+                  admission_date, schooling_status, screening_code,
+                  created_at, updated_at
+                ) VALUES (
+                  ?,
+                  ?, ?, ?,
+                  ?, ?, ?,
+                  ?, ?, ?,
+                  ?, ?, ?,
+                  ?, ?, ?,
+                  ?, ?, ?,
+                  ?, ?,
+                  ?, ?, ?,
+                  ?,
+                  ?, ?, ?,
+                  NOW(), NOW()
+                )
+                ON CONFLICT (initiation_id) DO UPDATE SET
+                  birth_weight_kg              = EXCLUDED.birth_weight_kg,
+                  birth_length_cm              = EXCLUDED.birth_length_cm,
+                  head_circumference_cm        = EXCLUDED.head_circumference_cm,
+                  apgar_score                  = EXCLUDED.apgar_score,
+                  delivery_mode                = EXCLUDED.delivery_mode,
+                  delivered_at_facility        = EXCLUDED.delivered_at_facility,
+                  mother_received_ptme         = EXCLUDED.mother_received_ptme,
+                  mother_hiv_status            = EXCLUDED.mother_hiv_status,
+                  mother_vital_status          = EXCLUDED.mother_vital_status,
+                  mother_ptme_regimen          = EXCLUDED.mother_ptme_regimen,
+                  infant_arv_prophylaxis_given = EXCLUDED.infant_arv_prophylaxis_given,
+                  infant_arv_protocol          = EXCLUDED.infant_arv_protocol,
+                  feeding_mode                 = EXCLUDED.feeding_mode,
+                  weaning_date                 = EXCLUDED.weaning_date,
+                  vaccinations                 = EXCLUDED.vaccinations,
+                  father_vital_status          = EXCLUDED.father_vital_status,
+                  father_education_level       = EXCLUDED.father_education_level,
+                  father_activity_type         = EXCLUDED.father_activity_type,
+                  mother_education_level       = EXCLUDED.mother_education_level,
+                  mother_activity_type         = EXCLUDED.mother_activity_type,
+                  guardian_vital_status        = EXCLUDED.guardian_vital_status,
+                  guardian_education_level     = EXCLUDED.guardian_education_level,
+                  guardian_activity_type       = EXCLUDED.guardian_activity_type,
+                  guardian_hiv_status          = EXCLUDED.guardian_hiv_status,
+                  admission_date               = EXCLUDED.admission_date,
+                  schooling_status             = EXCLUDED.schooling_status,
+                  screening_code               = EXCLUDED.screening_code,
+                  updated_at                   = NOW()
+                """,
+                initiationId,
+                p.birthWeightKg(), p.birthLengthCm(), p.headCircumferenceCm(),
+                p.apgarScore(), p.deliveryMode(), p.deliveredAtFacility(),
+                p.motherReceivedPtme(), p.motherHivStatus(), p.motherVitalStatus(),
+                p.motherPtmeRegimen(), p.infantArvProphylaxisGiven(), p.infantArvProtocol(),
+                p.feedingMode(),
+                p.weaningDate() == null ? null : Date.valueOf(p.weaningDate()),
+                p.vaccinations(),
+                p.fatherVitalStatus(), p.fatherEducationLevel(), p.fatherActivityType(),
+                p.motherEducationLevel(), p.motherActivityType(),
+                p.guardianVitalStatus(), p.guardianEducationLevel(), p.guardianActivityType(),
+                p.guardianHivStatus(),
+                p.admissionDate() == null ? null : Date.valueOf(p.admissionDate()),
+                p.schoolingStatus(), p.screeningCode());
     }
 
     /**
