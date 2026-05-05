@@ -27,16 +27,33 @@ cd ../sigdep-contracts && mvn -DskipTests install
 cd ../sigdep-hub && mvn clean install
 ```
 
+## Configuration
+
+Each Spring Boot module (`ingestion-api`, `console-api`) keeps its own `.env`
+at the module root. `spring-dotenv` loads it automatically at startup.
+
+```bash
+cp ingestion-api/.env.example ingestion-api/.env
+cp console-api/.env.example   console-api/.env
+# edit each file as needed
+```
+
+`.env` files are gitignored. `.env.example` files are the source of truth for
+the variables each module recognises.
+
 ## Dev environment
 
 ```bash
 cd infra && docker compose up -d            # postgres (5436) + keycloak (8180)
 
-cd ../ingestion-api && mvn spring-boot:run  # port 8090, runs Liquibase
-cd ../console-api    && mvn spring-boot:run # port 8081
+cd ../ingestion-api && ./run.sh --dev       # port 8090, runs Liquibase
+cd ../console-api    && ./run.sh --dev      # port 8081
 
 cd ../console-web && npm install && npm run dev   # port 5173, proxies /api → 8081
 ```
+
+To enable the dev profile on the hub APIs (auth disabled on `/api/v1/sync/**`),
+set `SPRING_PROFILES_ACTIVE=dev` in the module's `.env`.
 
 ## Production layout
 
