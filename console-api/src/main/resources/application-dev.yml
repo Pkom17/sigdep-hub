@@ -1,0 +1,10 @@
+# Local development profile.
+# Activate with: SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run
+# - Disables auth on the console (see ConsoleSecurityConfig#devFilterChain)
+# - Skips OAuth2 resource server auto-configuration so we don't try to fetch
+#   the JWK set from Keycloak at boot.
+
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
