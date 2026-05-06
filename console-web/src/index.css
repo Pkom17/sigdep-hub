@@ -1,0 +1,19 @@
+/* Roboto from Google Fonts (matches legacy SIGDEP hub) */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply font-sans bg-slate-50 text-ink antialiased;
+}
+
+/* Reusable card style — same density as the Bootstrap admin theme. */
+.card {
+  @apply bg-white rounded-lg shadow-card border border-slate-200/60;
+}
