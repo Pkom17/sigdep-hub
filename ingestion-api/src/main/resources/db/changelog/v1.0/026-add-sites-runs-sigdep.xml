@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Out of the 3,880 establishments in the MOH/DHIS2 reference, only ~549
+      actually run SIGDEP-3. Until we get the authoritative list of those
+      549 sites, this column stays NULL on every row; the console treats
+      "runs_sigdep IS TRUE" as the SIGDEP scope and "site has at least one
+      patient row" as a fallback for the early-deploy phase.
+    -->
+    <changeSet id="026-add-sites-runs-sigdep" author="itechciv" failOnError="true">
+        <addColumn tableName="sites" schemaName="core">
+            <column name="runs_sigdep" type="BOOLEAN"
+                    remarks="TRUE when the site is a known SIGDEP-3 deployment; NULL when unknown."/>
+        </addColumn>
+
+        <createIndex tableName="sites" schemaName="core" indexName="idx_sites_runs_sigdep">
+            <column name="runs_sigdep"/>
+        </createIndex>
+
+        <rollback>
+            <dropColumn tableName="sites" schemaName="core" columnName="runs_sigdep"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

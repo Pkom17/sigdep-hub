@@ -32,5 +32,6 @@
     <include file="db/changelog/v1.0/023-create-closures.xml"/>
     <include file="db/changelog/v1.0/024-create-lab-results.xml"/>
     <include file="db/changelog/v1.0/025-create-tpt-records.xml"/>
+    <include file="db/changelog/v1.0/026-add-sites-runs-sigdep.xml"/>
 
 </databaseChangeLog>

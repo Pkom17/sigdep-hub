@@ -37,6 +37,9 @@ public class Site {
 
     private Boolean active = true;
 
+    @Column(name = "runs_sigdep")
+    private Boolean runsSigdep;
+
     @Column(name = "source_uuid", length = 38, unique = true)
     private String sourceUuid;
 
@@ -67,6 +70,8 @@ public class Site {
     public void setLongitude(Double longitude) { this.longitude = longitude; }
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }
+    public Boolean getRunsSigdep() { return runsSigdep; }
+    public void setRunsSigdep(Boolean runsSigdep) { this.runsSigdep = runsSigdep; }
     public String getSourceUuid() { return sourceUuid; }
     public void setSourceUuid(String sourceUuid) { this.sourceUuid = sourceUuid; }
     public String getApiKeyHash() { return apiKeyHash; }
