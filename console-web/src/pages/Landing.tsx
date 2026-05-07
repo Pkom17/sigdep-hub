@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { useAuth } from 'react-oidc-context';
+import { useNavigate } from 'react-router-dom';
 import {
   Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip,
 } from 'recharts';
@@ -10,10 +11,17 @@ import { PartnerLogos } from '../components/PartnerLogos';
 const NATIONAL_TARGET_SITES = 549; // see runs_sigdep flag — not yet backfilled
 
 export function Landing() {
+  const auth = useAuth();
+  const navigate = useNavigate();
   const { data, isLoading, isError } = useQuery({
     queryKey: ['publicKpis'],
     queryFn: fetchPublicKpis,
   });
+
+  const handleLogin = () => {
+    if (auth.isAuthenticated) navigate('/dashboard');
+    else auth.signinRedirect();
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -27,11 +35,12 @@ export function Landing() {
               PNLS · Côte d’Ivoire
             </span>
           </div>
-          <Link to="/dashboard"
-                className="inline-flex items-center gap-1 rounded-md bg-sigdep-500 px-4 py-2 text-sm font-medium text-white hover:bg-sigdep-600 transition">
-            Se connecter
+          <button
+            onClick={handleLogin}
+            className="inline-flex items-center gap-1 rounded-md bg-sigdep-500 px-4 py-2 text-sm font-medium text-white hover:bg-sigdep-600 transition">
+            {auth.isAuthenticated ? 'Tableau de bord' : 'Se connecter'}
             <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 17L17 7M7 7h10v10"/></svg>
-          </Link>
+          </button>
         </div>
       </header>
 

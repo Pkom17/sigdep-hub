@@ -1,9 +1,19 @@
+import { getAccessToken } from '../auth';
+
 /**
  * Tiny fetch wrapper. The Vite dev server proxies /api/** to the console-api
  * (see vite.config.ts), so a relative URL works in dev and in prod.
+ *
+ * Public endpoints (/api/v1/public/**) are called without a token; for every
+ * other path we attach the bearer token from the OIDC user store.
  */
 async function get<T>(path: string): Promise<T> {
-  const r = await fetch(path);
+  const headers: Record<string, string> = {};
+  if (!path.startsWith('/api/v1/public/')) {
+    const token = getAccessToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+  const r = await fetch(path, { headers });
   if (!r.ok) throw new Error(`${r.status} ${r.statusText} on ${path}`);
   return r.json() as Promise<T>;
 }

@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { useAuth } from 'react-oidc-context';
 
 type NavItem = { to: string; label: string };
 type NavGroup = { label?: string; items: NavItem[] };
@@ -26,7 +27,20 @@ const NAV: NavGroup[] = [
   ]},
 ];
 
+function initials(name: string | undefined): string {
+  if (!name) return '·';
+  const parts = name.trim().split(/\s+/);
+  return (parts[0]?.[0] ?? '') + (parts[parts.length - 1]?.[0] ?? '');
+}
+
 export function AppLayout() {
+  const auth = useAuth();
+  const profile = auth.user?.profile;
+  const displayName = profile?.name
+    ?? [profile?.given_name, profile?.family_name].filter(Boolean).join(' ')
+    ?? profile?.preferred_username
+    ?? '—';
+
   return (
     <div className="min-h-screen flex bg-slate-50">
       {/* Sidebar */}
@@ -67,10 +81,15 @@ export function AppLayout() {
       {/* Main column */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-14 border-b border-slate-200 bg-white flex items-center justify-end px-6 gap-3">
-          <span className="text-sm text-ink-muted">Dr K. Yao &middot; PNLS</span>
-          <div className="h-8 w-8 rounded-full bg-sigdep-100 text-sigdep-700 flex items-center justify-center text-xs font-semibold">
-            KY
+          <span className="text-sm text-ink-muted">{displayName}</span>
+          <div className="h-8 w-8 rounded-full bg-sigdep-100 text-sigdep-700 flex items-center justify-center text-xs font-semibold uppercase">
+            {initials(displayName)}
           </div>
+          <button
+            onClick={() => auth.signoutRedirect()}
+            className="ml-2 text-xs text-ink-muted hover:text-ink underline-offset-2 hover:underline">
+            Déconnexion
+          </button>
         </header>
         <main className="flex-1 overflow-y-auto">
           <Outlet />

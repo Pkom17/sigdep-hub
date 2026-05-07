@@ -5,12 +5,13 @@ import { Dashboard } from './pages/Dashboard';
 import { Stub } from './pages/Stub';
 import { Patients } from './pages/Patients';
 import { PatientDetail } from './pages/PatientDetail';
+import { RequireAuth } from './auth';
 
 export function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/dashboard" element={<AppLayout />}>
+      <Route path="/dashboard" element={<RequireAuth><AppLayout /></RequireAuth>}>
         <Route index element={<Dashboard />} />
         <Route path="pepfar" element={<Stub title="Indicateurs PEPFAR" />} />
         <Route path="clinique" element={<Stub title="Suivi clinique" />} />
