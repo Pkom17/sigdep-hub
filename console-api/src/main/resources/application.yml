@@ -23,7 +23,7 @@ spring:
       static-locations: classpath:/static/
 
 server:
-  port: ${SERVER_PORT:8081}
+  port: ${SERVER_PORT:8041}
   shutdown: graceful
 
 management:

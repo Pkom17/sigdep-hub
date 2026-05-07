@@ -65,7 +65,18 @@ if [[ -n "${PROFILE_VALUE:-}" ]]; then
 fi
 
 # --- Run --------------------------------------------------------------------
+# In --dev mode we run from the multi-module reactor with -pl/-am so that any
+# uncommitted change in core-domain (or other dependent modules) is rebuilt
+# and installed before ingestion-api starts. Running `mvn spring-boot:run`
+# from this directory alone would resolve core-domain from ~/.m2 and miss
+# recent changes — that's a frequent foot-gun.
 if [[ "${1:-}" == "--dev" ]]; then
+  # First reinstall dependent modules (core-domain) so that any uncommitted
+  # change is picked up before spring-boot:run resolves it from ~/.m2.
+  # We only install core-domain — installing the API modules triggers the
+  # spring-boot repackage step which needs JDK 17 in the spawned shell and
+  # is unnecessary here (we run from target/classes via spring-boot:run).
+  ( cd .. && mvn -B -DskipTests -pl core-domain install )
   exec mvn -B spring-boot:run
 fi
 

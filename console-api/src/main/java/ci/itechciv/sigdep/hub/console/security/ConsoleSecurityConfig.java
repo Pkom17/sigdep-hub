@@ -18,8 +18,18 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
-@EnableMethodSecurity
 public class ConsoleSecurityConfig {
+
+    /**
+     * Method-level security (@PreAuthorize) is only active outside the dev
+     * profile. In dev we deliberately bypass auth for smoke tests, so guarding
+     * controllers by role would systematically return 403 (anonymous principal
+     * has no roles).
+     */
+    @Configuration
+    @EnableMethodSecurity
+    @Profile("!dev")
+    static class MethodSecurity {}
 
     @Bean
     @Profile("!dev")
