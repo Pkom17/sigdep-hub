@@ -41,7 +41,7 @@ export function PatientDetail() {
   return (
     <div className="px-6 py-6">
       <div className="mb-4">
-        <Link to="/dashboard/patients" className="text-sm text-sigdep-700 hover:underline">
+        <Link to="/app/patients" className="text-sm text-sigdep-700 hover:underline">
           ← Retour à la liste
         </Link>
       </div>

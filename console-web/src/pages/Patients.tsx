@@ -68,7 +68,7 @@ export function Patients() {
             ) : data?.content.map(p => (
               <tr key={p.id} className="hover:bg-slate-50">
                 <td className="px-4 py-2">
-                  <Link to={`/dashboard/patients/${p.id}`} className="text-sigdep-700 hover:underline">
+                  <Link to={`/app/patients/${p.id}`} className="text-sigdep-700 hover:underline">
                     {p.primaryIdentifier ?? '—'}
                   </Link>
                 </td>

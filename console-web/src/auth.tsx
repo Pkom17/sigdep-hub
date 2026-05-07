@@ -6,7 +6,7 @@ import { WebStorageStateStore } from 'oidc-client-ts';
 const AUTHORITY = import.meta.env.VITE_OIDC_AUTHORITY
   ?? 'http://localhost:8180/realms/sigdep';
 const CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID ?? 'sigdep-console';
-const REDIRECT_URI = window.location.origin + '/dashboard';
+const REDIRECT_URI = window.location.origin + '/app';
 const POST_LOGOUT_URI = window.location.origin + '/';
 
 const oidcConfig = {
