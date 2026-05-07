@@ -1,0 +1,172 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchRegions, fetchSites, SiteStatus } from '../api/client';
+import { formatInt } from '../components/Kpi';
+
+const STATUS_TABS: { value: SiteStatus; label: string }[] = [
+  { value: 'all',     label: 'Tous' },
+  { value: 'online',  label: 'En ligne (< 24h)' },
+  { value: 'late',    label: 'En retard (24h–7j)' },
+  { value: 'offline', label: 'Hors ligne (> 7j)' },
+];
+
+function syncBadge(iso: string | null): { label: string; tone: string } {
+  if (!iso) return { label: 'Jamais', tone: 'bg-slate-100 text-slate-600' };
+  const d = new Date(iso).getTime();
+  const ageHours = (Date.now() - d) / 36e5;
+  if (ageHours < 24) {
+    return { label: formatRelative(ageHours), tone: 'bg-emerald-50 text-emerald-700' };
+  }
+  if (ageHours < 24 * 7) {
+    return { label: formatRelative(ageHours), tone: 'bg-amber-50 text-amber-700' };
+  }
+  return { label: formatRelative(ageHours), tone: 'bg-rose-50 text-rose-700' };
+}
+
+function formatRelative(ageHours: number): string {
+  if (ageHours < 1) return 'À l’instant';
+  if (ageHours < 24) return `il y a ${Math.floor(ageHours)} h`;
+  const days = Math.floor(ageHours / 24);
+  return `il y a ${days} j`;
+}
+
+function sigdepBadge(flag: boolean | null): { label: string; tone: string } {
+  if (flag === true)  return { label: 'SIGDEP', tone: 'bg-sigdep-50 text-sigdep-700' };
+  if (flag === false) return { label: 'Hors SIGDEP', tone: 'bg-slate-100 text-slate-500' };
+  return { label: '?', tone: 'bg-slate-100 text-slate-400' };
+}
+
+export function Sites() {
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState<SiteStatus>('all');
+  const [regionId, setRegionId] = useState<number | undefined>(undefined);
+  const [page, setPage] = useState(0);
+  const size = 50;
+
+  const regions = useQuery({
+    queryKey: ['regions'],
+    queryFn: fetchRegions,
+  });
+
+  const sites = useQuery({
+    queryKey: ['sites', query, status, regionId, page],
+    queryFn: () => fetchSites({ q: query, status, regionId, page, size }),
+  });
+
+  const totalPages = sites.data ? Math.max(1, Math.ceil(sites.data.total / sites.data.size)) : 1;
+
+  return (
+    <div className="px-6 py-6">
+      <div className="flex items-baseline justify-between mb-4 gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Sites</h1>
+          <p className="text-sm text-ink-muted">
+            {sites.data ? `${formatInt(sites.data.total)} sites` : 'Chargement…'}
+          </p>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <select
+            value={regionId ?? ''}
+            onChange={e => { setRegionId(e.target.value ? Number(e.target.value) : undefined); setPage(0); }}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm bg-white">
+            <option value="">Toutes les régions</option>
+            {regions.data?.map(r => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+          </select>
+          <input
+            type="search"
+            value={query}
+            onChange={e => { setQuery(e.target.value); setPage(0); }}
+            placeholder="Rechercher (code ou nom)…"
+            className="w-72 rounded-md border border-slate-300 px-3 py-2 text-sm
+                       focus:outline-none focus:border-sigdep-500 focus:ring-1 focus:ring-sigdep-500"
+          />
+        </div>
+      </div>
+
+      {/* Status tabs */}
+      <div className="flex gap-1 mb-4 border-b border-slate-200">
+        {STATUS_TABS.map(t => (
+          <button
+            key={t.value}
+            onClick={() => { setStatus(t.value); setPage(0); }}
+            className={`px-3 py-2 text-sm border-b-2 transition ${
+              status === t.value
+                ? 'border-sigdep-500 text-sigdep-700 font-medium'
+                : 'border-transparent text-ink-muted hover:text-ink'
+            }`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-ink-muted">
+            <tr className="text-left">
+              <th className="px-4 py-2 font-medium">Code</th>
+              <th className="px-4 py-2 font-medium">Nom</th>
+              <th className="px-4 py-2 font-medium">Région / District</th>
+              <th className="px-4 py-2 font-medium">Type</th>
+              <th className="px-4 py-2 font-medium text-right">Patients</th>
+              <th className="px-4 py-2 font-medium">Dernier sync</th>
+              <th className="px-4 py-2 font-medium">SIGDEP</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {sites.isLoading ? (
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-ink-muted">Chargement…</td></tr>
+            ) : sites.isError ? (
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-rose-600">Erreur de chargement</td></tr>
+            ) : sites.data?.content.length === 0 ? (
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-ink-muted">Aucun site</td></tr>
+            ) : sites.data?.content.map(s => {
+              const sb = syncBadge(s.lastSyncAt);
+              const sg = sigdepBadge(s.runsSigdep);
+              return (
+                <tr key={s.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-2 font-mono text-xs">{s.code}</td>
+                  <td className="px-4 py-2">{s.name}</td>
+                  <td className="px-4 py-2 text-ink-muted">
+                    {s.regionName} <span className="text-ink-subtle">/ {s.districtName}</span>
+                  </td>
+                  <td className="px-4 py-2 text-ink-muted">{s.facilityType ?? '—'}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{formatInt(s.patientCount)}</td>
+                  <td className="px-4 py-2">
+                    <span className={`text-xs px-2 py-0.5 rounded ${sb.tone}`}>{sb.label}</span>
+                  </td>
+                  <td className="px-4 py-2">
+                    <span className={`text-xs px-2 py-0.5 rounded ${sg.tone}`}>{sg.label}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {sites.data && sites.data.total > 0 && (
+        <div className="mt-4 flex items-center justify-between text-sm">
+          <p className="text-ink-muted">
+            Page {sites.data.page + 1} / {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={sites.data.page === 0}
+              className="px-3 py-1 rounded border border-slate-300 disabled:opacity-50 hover:bg-slate-50">
+              Précédent
+            </button>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={sites.data.page + 1 >= totalPages}
+              className="px-3 py-1 rounded border border-slate-300 disabled:opacity-50 hover:bg-slate-50">
+              Suivant
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -111,3 +111,50 @@ export function fetchPatient(id: number) {
 export function fetchPatientTimeline(id: number) {
   return get<TimelineEntry[]>(`/api/v1/patients/${id}/timeline`);
 }
+
+// --- Sites -----------------------------------------------------------------
+
+export type SiteStatus = 'all' | 'online' | 'late' | 'offline';
+
+export type SiteRow = {
+  id: number;
+  code: string;
+  name: string;
+  facilityType: string | null;
+  runsSigdep: boolean | null;
+  lastSyncAt: string | null;
+  districtId: number;
+  districtName: string;
+  regionId: number;
+  regionName: string;
+  patientCount: number;
+};
+
+export type SitePage = {
+  content: SiteRow[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export type RegionRef = { id: number; name: string };
+
+export function fetchSites(opts: {
+  q?: string;
+  status?: SiteStatus;
+  regionId?: number;
+  page?: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  if (opts.q) params.set('q', opts.q);
+  if (opts.status && opts.status !== 'all') params.set('status', opts.status);
+  if (opts.regionId) params.set('regionId', String(opts.regionId));
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<SitePage>(`/api/v1/sites?${params}`);
+}
+
+export function fetchRegions() {
+  return get<RegionRef[]>('/api/v1/sites/regions');
+}
