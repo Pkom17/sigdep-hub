@@ -1,0 +1,126 @@
+{
+  "realm": "sigdep",
+  "displayName": "SIGDEP-3 — PNLS Côte d'Ivoire",
+  "enabled": true,
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "verifyEmail": false,
+  "sslRequired": "none",
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 3600,
+  "ssoSessionMaxLifespan": 36000,
+
+  "roles": {
+    "realm": [
+      { "name": "SUPER_ADMIN",     "description": "Full administration of the platform" },
+      { "name": "NATIONAL_VIEWER", "description": "Read-only access to national KPIs and dashboards" },
+      { "name": "REGIONAL_COORD",  "description": "Regional coordinator — read across sites of a region" },
+      { "name": "SITE_USER",       "description": "Site-level user — access scoped to one site" },
+      { "name": "ANALYST",         "description": "Analyst — read patient timelines and exports" },
+      { "name": "IT_ADMIN",        "description": "Technical administration (sync, users, configuration)" },
+      { "name": "AUDITOR",         "description": "Read-only auditor — cross-site, audit log access" }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "sigdep-console",
+      "name": "SIGDEP Console (web)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://127.0.0.1:5173/*",
+        "http://localhost:5173/*",
+        "http://127.0.0.1:8041/*",
+        "http://localhost:8041/*"
+      ],
+      "webOrigins": [
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+        "http://127.0.0.1:8041",
+        "http://localhost:8041"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://127.0.0.1:5173/*##http://localhost:5173/*"
+      },
+      "fullScopeAllowed": true
+    },
+    {
+      "clientId": "sigdep-console-api",
+      "name": "SIGDEP Console API (bearer-only)",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "fullScopeAllowed": true
+    },
+    {
+      "clientId": "sigdep-ingestion-api",
+      "name": "SIGDEP Ingestion API (bearer-only)",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "fullScopeAllowed": true
+    },
+    {
+      "clientId": "sigdep-agent",
+      "name": "SIGDEP edge agent (client credentials)",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "agent-dev-secret-change-me",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "clientAuthenticatorType": "client-secret"
+    }
+  ],
+
+  "users": [
+    {
+      "username": "pkomena",
+      "email": "pkom17@gmail.com",
+      "firstName": "Pascal",
+      "lastName": "KOMENA",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "sigdep", "temporary": false }
+      ],
+      "realmRoles": ["SUPER_ADMIN", "IT_ADMIN", "NATIONAL_VIEWER"]
+    },
+    {
+      "username": "national-viewer",
+      "email": "national@sigdep.local",
+      "firstName": "Dr K.",
+      "lastName": "Yao",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "sigdep", "temporary": false }
+      ],
+      "realmRoles": ["NATIONAL_VIEWER"]
+    },
+    {
+      "username": "site-user",
+      "email": "site@sigdep.local",
+      "firstName": "Site",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "sigdep", "temporary": false }
+      ],
+      "realmRoles": ["SITE_USER"]
+    }
+  ]
+}
