@@ -9,6 +9,7 @@ import { Sites } from "./pages/Sites";
 import { Biologie } from "./pages/Biologie";
 import { Pepfar } from "./pages/Pepfar";
 import { Tpt } from "./pages/Tpt";
+import { Clinique } from "./pages/Clinique";
 import { Stub } from "./pages/Stub";
 
 export function App() {
@@ -33,7 +34,7 @@ export function App() {
         <Route path="patients" element={<Patients />} />
         <Route path="patients/:id" element={<PatientDetail />} />
         <Route path="sites" element={<Sites />} />
-        <Route path="clinique" element={<Stub title="Suivi clinique" />} />
+        <Route path="clinique" element={<Clinique />} />
         <Route path="pharmacie" element={<Stub title="Pharmacie / ARV" />} />
         <Route path="depistage" element={<Stub title="Dépistage" />} />
         <Route path="ptme" element={<Stub title="PTME" />} />

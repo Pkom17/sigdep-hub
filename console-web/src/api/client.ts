@@ -389,3 +389,80 @@ export async function downloadTptCsv(months: number, regionId?: number): Promise
   const url = `/api/v1/tpt/records.csv?${params}`;
   await downloadCsv(url, `tpt-${months}m.csv`);
 }
+
+// --- Clinic (suivi clinique) -----------------------------------------------
+
+export type MonthlyCount = { month: string; count: number };
+
+export type ClinicSummary = {
+  visitsAllTime: number;
+  visitsInPeriod: number;
+  withTbScreening: number;
+  withWhoStage: number;
+  tbScreeningPct: number | null;
+  whoStagePct: number | null;
+  monthly: MonthlyCount[];
+  whoStageDistribution: Bucket[];
+  tbScreeningDistribution: Bucket[];
+  arvRegimenDistribution: Bucket[];
+  periodMonths: number;
+};
+
+export type VisitRow = {
+  id: number;
+  visitDate: string | null;
+  nextVisitDate: string | null;
+  sourceForm: string | null;
+  arvRegimen: string | null;
+  arvTreatmentDays: number | null;
+  cotrimTreatmentDays: number | null;
+  weightKg: number | null;
+  heightCm: number | null;
+  bmi: number | null;
+  viralLoad: number | null;
+  cd4Count: number | null;
+  tptStatus: string | null;
+  tptRegimen: string | null;
+  whoStage: string | null;
+  tbScreening: string | null;
+  patientId: number;
+  patientCode: string | null;
+  siteCode: string;
+  siteName: string;
+};
+
+export type VisitPage = {
+  content: VisitRow[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export function fetchClinicSummary(months: number, regionId?: number) {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  if (regionId) params.set('regionId', String(regionId));
+  return get<ClinicSummary>(`/api/v1/clinic/summary?${params}`);
+}
+
+export function fetchClinicVisits(opts: {
+  months: number;
+  regionId?: number;
+  page?: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  params.set('months', String(opts.months));
+  if (opts.regionId) params.set('regionId', String(opts.regionId));
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<VisitPage>(`/api/v1/clinic/visits?${params}`);
+}
+
+export async function downloadClinicCsv(months: number, regionId?: number): Promise<void> {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  if (regionId) params.set('regionId', String(regionId));
+  const url = `/api/v1/clinic/visits.csv?${params}`;
+  await downloadCsv(url, `clinique-${months}m.csv`);
+}
