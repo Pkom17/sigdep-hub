@@ -4,6 +4,11 @@ import ci.itechciv.sigdep.hub.domain.service.PatientQueryService;
 import ci.itechciv.sigdep.hub.domain.service.PatientQueryService.EncounterDay;
 import ci.itechciv.sigdep.hub.domain.service.PatientQueryService.PatientDetail;
 import ci.itechciv.sigdep.hub.domain.service.PatientQueryService.PatientPage;
+import ci.itechciv.sigdep.hub.domain.service.PatientQueryService.PatientRow;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -42,5 +47,44 @@ public class PatientController {
     @GetMapping("/{id}/encounters")
     public List<EncounterDay> encounters(@PathVariable long id) {
         return service.encounters(id);
+    }
+
+    /** CSV export. Caps at 5,000 rows to keep memory bounded. */
+    @GetMapping(value = "/list.csv", produces = "text/csv;charset=UTF-8")
+    public void listCsv(
+            @RequestParam(required = false) String q,
+            HttpServletResponse response) throws IOException {
+
+        PatientPage page = service.list(q, 0, 5000);
+
+        String filename = "patients.csv";
+        response.setContentType("text/csv;charset=UTF-8");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+
+        DateTimeFormatter df = DateTimeFormatter.ISO_LOCAL_DATE;
+        try (PrintWriter w = response.getWriter()) {
+            w.write('﻿'); // BOM
+            w.println("code_arv;upid;sexe;date_naissance;date_init_arv;regime_arv_initial;derniere_visite;dernier_regime_arv;site_code;site_nom");
+            for (PatientRow p : page.content()) {
+                w.print(csv(p.codeArv())); w.print(';');
+                w.print(csv(p.upid())); w.print(';');
+                w.print(csv(p.sex())); w.print(';');
+                w.print(p.birthDate() == null ? "" : p.birthDate().format(df)); w.print(';');
+                w.print(p.arvInitDate() == null ? "" : p.arvInitDate().format(df)); w.print(';');
+                w.print(csv(p.arvRegimenInitial())); w.print(';');
+                w.print(p.lastVisitDate() == null ? "" : p.lastVisitDate().format(df)); w.print(';');
+                w.print(csv(p.lastArvRegimen())); w.print(';');
+                w.print(csv(p.siteCode())); w.print(';');
+                w.println(csv(p.siteName()));
+            }
+        }
+    }
+
+    private static String csv(String s) {
+        if (s == null) return "";
+        boolean q = s.contains(";") || s.contains("\"") || s.contains("\n");
+        if (!q) return s;
+        return '"' + s.replace("\"", "\"\"") + '"';
     }
 }

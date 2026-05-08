@@ -21,7 +21,7 @@ public class PatientQueryService {
     }
 
     public PatientPage list(String search, int page, int size) {
-        int safeSize = Math.max(1, Math.min(100, size));
+        int safeSize = Math.max(1, Math.min(500, size));
         int safePage = Math.max(0, page);
         int offset = safePage * safeSize;
 
@@ -42,8 +42,27 @@ public class PatientQueryService {
                 SELECT p.id, p.source_uuid, p.sex, p.birth_date,
                        s.code AS site_code, s.name AS site_name,
                        (SELECT pi.identifier_value FROM core.patient_identifiers pi
-                          WHERE pi.patient_id = p.id
-                          ORDER BY pi.id LIMIT 1) AS primary_identifier
+                          JOIN core.identifier_types it ON it.id = pi.identifier_type_id
+                          WHERE pi.patient_id = p.id AND it.code = 'CODE_ARV'
+                          ORDER BY pi.id LIMIT 1) AS code_arv,
+                       (SELECT pi.identifier_value FROM core.patient_identifiers pi
+                          JOIN core.identifier_types it ON it.id = pi.identifier_type_id
+                          WHERE pi.patient_id = p.id AND it.code = 'UPID'
+                          ORDER BY pi.id LIMIT 1) AS upid,
+                       (SELECT min(COALESCE(ti.arv_init_date, ti.enrollment_date))
+                          FROM core.treatment_initiations ti
+                          WHERE ti.patient_id = p.id AND ti.voided = FALSE) AS arv_init_date,
+                       (SELECT ti.arv_regimen_initial FROM core.treatment_initiations ti
+                          WHERE ti.patient_id = p.id AND ti.voided = FALSE
+                          ORDER BY COALESCE(ti.arv_init_date, ti.enrollment_date) ASC NULLS LAST
+                          LIMIT 1) AS arv_regimen_initial,
+                       (SELECT max(v.visit_date) FROM core.visits v
+                          WHERE v.patient_id = p.id AND v.voided = FALSE) AS last_visit_date,
+                       (SELECT v.arv_regimen FROM core.visits v
+                          WHERE v.patient_id = p.id AND v.voided = FALSE
+                            AND v.arv_regimen IS NOT NULL
+                          ORDER BY v.visit_date DESC NULLS LAST, v.id DESC
+                          LIMIT 1) AS last_arv_regimen
                 FROM core.patients p
                 JOIN core.sites s ON s.id = p.site_id
                 """ + where + """
@@ -60,6 +79,8 @@ public class PatientQueryService {
 
     private PatientRow mapRow(java.sql.ResultSet rs, int i) throws java.sql.SQLException {
         java.sql.Date bd = rs.getDate("birth_date");
+        java.sql.Date initDate = rs.getDate("arv_init_date");
+        java.sql.Date lastVisit = rs.getDate("last_visit_date");
         return new PatientRow(
                 rs.getLong("id"),
                 UUID.fromString(rs.getString("source_uuid")),
@@ -67,7 +88,12 @@ public class PatientQueryService {
                 bd == null ? null : bd.toLocalDate(),
                 rs.getString("site_code"),
                 rs.getString("site_name"),
-                rs.getString("primary_identifier"));
+                rs.getString("code_arv"),
+                rs.getString("upid"),
+                initDate == null ? null : initDate.toLocalDate(),
+                rs.getString("arv_regimen_initial"),
+                lastVisit == null ? null : lastVisit.toLocalDate(),
+                rs.getString("last_arv_regimen"));
     }
 
     public record PatientRow(
@@ -77,7 +103,12 @@ public class PatientQueryService {
             LocalDate birthDate,
             String siteCode,
             String siteName,
-            String primaryIdentifier
+            String codeArv,
+            String upid,
+            LocalDate arvInitDate,
+            String arvRegimenInitial,
+            LocalDate lastVisitDate,
+            String lastArvRegimen
     ) {}
 
     public record PatientPage(

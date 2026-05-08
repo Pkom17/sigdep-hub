@@ -65,7 +65,12 @@ export type PatientRow = {
   birthDate: string | null;
   siteCode: string;
   siteName: string;
-  primaryIdentifier: string | null;
+  codeArv: string | null;
+  upid: string | null;
+  arvInitDate: string | null;
+  arvRegimenInitial: string | null;
+  lastVisitDate: string | null;
+  lastArvRegimen: string | null;
 };
 
 export type PatientPage = {
@@ -109,6 +114,13 @@ export function fetchPatients(q: string, page = 0, size = 25) {
   params.set('page', String(page));
   params.set('size', String(size));
   return get<PatientPage>(`/api/v1/patients?${params}`);
+}
+
+export async function downloadPatientsCsv(q: string): Promise<void> {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  const url = `/api/v1/patients/list.csv?${params}`;
+  await downloadCsv(url, 'patients.csv');
 }
 
 export function fetchPatient(id: number) {
