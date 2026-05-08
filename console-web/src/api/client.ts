@@ -316,3 +316,76 @@ export async function downloadPepfarCsv(fy: number, q: number, regionId?: number
   const filename = `pepfar-FY${fy}Q${q}.csv`;
   await downloadCsv(url, filename);
 }
+
+// --- TPT -------------------------------------------------------------------
+
+export type YearBucket = { year: number; count: number };
+export type Bucket = { label: string; count: number };
+
+export type TptSummary = {
+  totalAllTime: number;
+  startedInPeriod: number;
+  completedInPeriod: number;
+  ongoing: number;
+  completionPct: number | null;
+  yearly: YearBucket[];
+  outcomes: Bucket[];
+  adherence: Bucket[];
+  statuses: Bucket[];
+  regimens: Bucket[];
+  periodMonths: number;
+};
+
+export type TptRecord = {
+  id: number;
+  recordDate: string | null;
+  followupDate: string | null;
+  endDate: string | null;
+  outcome: string | null;
+  orderNumber: string | null;
+  tptStatus: string | null;
+  tptRegimen: string | null;
+  adherence: string | null;
+  weightKg: number | null;
+  nextVisitDate: string | null;
+  patientId: number;
+  patientCode: string | null;
+  siteCode: string;
+  siteName: string;
+};
+
+export type TptRecordPage = {
+  content: TptRecord[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export function fetchTptSummary(months: number, regionId?: number) {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  if (regionId) params.set('regionId', String(regionId));
+  return get<TptSummary>(`/api/v1/tpt/summary?${params}`);
+}
+
+export function fetchTptRecords(opts: {
+  months: number;
+  regionId?: number;
+  page?: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  params.set('months', String(opts.months));
+  if (opts.regionId) params.set('regionId', String(opts.regionId));
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<TptRecordPage>(`/api/v1/tpt/records?${params}`);
+}
+
+export async function downloadTptCsv(months: number, regionId?: number): Promise<void> {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  if (regionId) params.set('regionId', String(regionId));
+  const url = `/api/v1/tpt/records.csv?${params}`;
+  await downloadCsv(url, `tpt-${months}m.csv`);
+}

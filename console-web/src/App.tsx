@@ -8,6 +8,7 @@ import { Patients } from "./pages/Patients";
 import { Sites } from "./pages/Sites";
 import { Biologie } from "./pages/Biologie";
 import { Pepfar } from "./pages/Pepfar";
+import { Tpt } from "./pages/Tpt";
 import { Stub } from "./pages/Stub";
 
 export function App() {
@@ -36,7 +37,7 @@ export function App() {
         <Route path="pharmacie" element={<Stub title="Pharmacie / ARV" />} />
         <Route path="depistage" element={<Stub title="Dépistage" />} />
         <Route path="ptme" element={<Stub title="PTME" />} />
-        <Route path="tpt" element={<Stub title="TPT" />} />
+        <Route path="tpt" element={<Tpt />} />
         <Route path="biologie" element={<Biologie />} />
         <Route path="sync" element={<Stub title="Synchronisation" />} />
         <Route path="users" element={<Stub title="Utilisateurs" />} />

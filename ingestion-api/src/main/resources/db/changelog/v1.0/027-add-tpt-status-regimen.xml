@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Surface two TPT obs that the source already records:
+        - 165049 "Traitement Thérapie Préventive de la Tuberculose (TPT)"
+          → tpt_status (Début / En cours / Fin / Pas de TPT)
+        - 165319 "Protocole TPT"
+          → tpt_regimen (3HP, 6H, INH, …)
+    -->
+    <changeSet id="027-add-tpt-status-regimen" author="itechciv" failOnError="true">
+        <addColumn tableName="tpt_records" schemaName="core">
+            <column name="tpt_status" type="VARCHAR(100)"
+                    remarks="TPT lifecycle status from concept 165049 (Début / En cours / Fin / Pas de TPT)."/>
+            <column name="tpt_regimen" type="VARCHAR(50)"
+                    remarks="TPT regimen from concept 165319 (e.g. 3HP, 6H, INH, INH+RPT)."/>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="tpt_records" schemaName="core" columnName="tpt_status"/>
+            <dropColumn tableName="tpt_records" schemaName="core" columnName="tpt_regimen"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

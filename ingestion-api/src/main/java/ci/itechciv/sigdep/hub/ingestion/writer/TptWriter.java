@@ -76,12 +76,14 @@ public class TptWriter {
                   patient_id, site_id, source_uuid,
                   record_type, record_date,
                   tpt_followup_date, tpt_end_date, tpt_outcome, tpt_order_number,
+                  tpt_status, tpt_regimen,
                   adherence, weight_kg, next_visit_date,
                   extra_data, voided, created_at, updated_at
                 ) VALUES (
                   ?, ?, ?,
                   ?, ?,
                   ?, ?, ?, ?,
+                  ?, ?,
                   ?, ?, ?,
                   ?::jsonb, ?, NOW(), NOW()
                 )
@@ -92,6 +94,8 @@ public class TptWriter {
                   tpt_end_date      = EXCLUDED.tpt_end_date,
                   tpt_outcome       = EXCLUDED.tpt_outcome,
                   tpt_order_number  = EXCLUDED.tpt_order_number,
+                  tpt_status        = EXCLUDED.tpt_status,
+                  tpt_regimen       = EXCLUDED.tpt_regimen,
                   adherence         = EXCLUDED.adherence,
                   weight_kg         = EXCLUDED.weight_kg,
                   next_visit_date   = EXCLUDED.next_visit_date,
@@ -105,6 +109,7 @@ public class TptWriter {
                 t.tptFollowupDate() == null ? null : Date.valueOf(t.tptFollowupDate()),
                 t.tptEndDate()      == null ? null : Date.valueOf(t.tptEndDate()),
                 t.tptOutcome(), t.tptOrderNumber(),
+                t.tptStatus(), t.tptRegimen(),
                 t.adherence(), t.weightKg(),
                 t.nextVisitDate()   == null ? null : Date.valueOf(t.nextVisitDate()),
                 extraJson,

@@ -85,6 +85,7 @@ public class VisitWriter {
                   bp_systolic, bp_diastolic,
                   viral_load, viral_load_date, cd4_count, cd4_date,
                   breastfeeding_status,
+                  tpt_status, tpt_regimen,
                   extra_data, voided,
                   created_at, updated_at
                 ) VALUES (
@@ -99,6 +100,7 @@ public class VisitWriter {
                   ?, ?,
                   ?, ?, ?, ?,
                   ?,
+                  ?, ?,
                   ?::jsonb, ?,
                   NOW(), NOW()
                 )
@@ -132,6 +134,8 @@ public class VisitWriter {
                   cd4_count                      = EXCLUDED.cd4_count,
                   cd4_date                       = EXCLUDED.cd4_date,
                   breastfeeding_status           = EXCLUDED.breastfeeding_status,
+                  tpt_status                     = EXCLUDED.tpt_status,
+                  tpt_regimen                    = EXCLUDED.tpt_regimen,
                   extra_data                     = EXCLUDED.extra_data,
                   voided                         = EXCLUDED.voided,
                   updated_at                     = NOW()
@@ -156,6 +160,7 @@ public class VisitWriter {
                         v.cd4Count(),
                         v.cd4Date() == null ? null : Date.valueOf(v.cd4Date()),
                         v.breastfeedingStatus(),
+                        v.tptStatus(), v.tptRegimen(),
                         extraJson,
                         Boolean.TRUE.equals(v.voided())
                 },
@@ -171,6 +176,7 @@ public class VisitWriter {
                         Types.SMALLINT, Types.SMALLINT,
                         Types.DECIMAL, Types.DATE, Types.INTEGER, Types.DATE,
                         Types.VARCHAR,
+                        Types.VARCHAR, Types.VARCHAR,
                         Types.VARCHAR, Types.BOOLEAN
                 });
     }

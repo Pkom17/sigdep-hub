@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      The TPT status (165049) and TPT regimen (165319) obs are captured on
+      the regular "PEC - Suivi patient" encounters (not on the dedicated
+      PEC - Suivi TPT ones). Mirror them on core.visits so the suivi clinique
+      pages can surface them per visit. tpt_records keeps its own copy
+      (filled by lookup on the latest visit at that date).
+    -->
+    <changeSet id="028-add-visits-tpt-columns" author="itechciv" failOnError="true">
+        <addColumn tableName="visits" schemaName="core">
+            <column name="tpt_status" type="VARCHAR(100)"
+                    remarks="TPT lifecycle status from concept 165049 (Début / En cours / Fin / Pas de TPT)."/>
+            <column name="tpt_regimen" type="VARCHAR(50)"
+                    remarks="TPT regimen from concept 165319 (e.g. 3HP, 6H, INH)."/>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="visits" schemaName="core" columnName="tpt_status"/>
+            <dropColumn tableName="visits" schemaName="core" columnName="tpt_regimen"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
