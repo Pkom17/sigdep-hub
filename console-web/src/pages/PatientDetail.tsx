@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { fetchPatient, fetchPatientTimeline } from '../api/client';
+import { DateBlock, fetchPatient, fetchPatientEncounters } from '../api/client';
 
-const KIND_LABEL: Record<string, { label: string; color: string }> = {
-  visit:      { label: 'Visite',     color: 'bg-sky-100 text-sky-700' },
-  initiation: { label: 'Initiation', color: 'bg-emerald-100 text-emerald-700' },
-  lab:        { label: 'Biologie',   color: 'bg-violet-100 text-violet-700' },
+const KIND_META: Record<string, { label: string; color: string }> = {
+  visit:      { label: 'Visite',         color: 'bg-sky-100 text-sky-700' },
+  initiation: { label: 'Initiation ARV', color: 'bg-emerald-100 text-emerald-700' },
+  closure:    { label: 'Clôture',        color: 'bg-rose-100 text-rose-700' },
+  lab:        { label: 'Biologie',       color: 'bg-violet-100 text-violet-700' },
 };
 
 function formatDate(iso: string): string {
@@ -23,9 +25,9 @@ export function PatientDetail() {
     enabled: !Number.isNaN(patientId),
   });
 
-  const timeline = useQuery({
-    queryKey: ['patientTimeline', patientId],
-    queryFn: () => fetchPatientTimeline(patientId),
+  const encounters = useQuery({
+    queryKey: ['patientEncounters', patientId],
+    queryFn: () => fetchPatientEncounters(patientId),
     enabled: !Number.isNaN(patientId),
   });
 
@@ -37,6 +39,9 @@ export function PatientDetail() {
   }
 
   const p = patient.data;
+  let sex: string | null = null;
+  if (p.sex === 'M') sex = 'Homme';
+  else if (p.sex === 'F') sex = 'Femme';
 
   return (
     <div className="px-6 py-6">
@@ -57,7 +62,7 @@ export function PatientDetail() {
       <div className="card p-4 mb-6">
         <h3 className="text-sm font-medium mb-3">Identité</h3>
         <dl className="grid gap-x-6 gap-y-2 grid-cols-2 lg:grid-cols-4 text-sm">
-          <Field label="Sexe" value={p.sex === 'M' ? 'Homme' : p.sex === 'F' ? 'Femme' : null} />
+          <Field label="Sexe" value={sex} />
           <Field label="Date de naissance" value={p.birthDate ? formatDate(p.birthDate) : null} />
           <Field label="Profession" value={p.profession} />
           <Field label="Niveau d’éducation" value={p.educationLevel} />
@@ -67,34 +72,86 @@ export function PatientDetail() {
         </dl>
       </div>
 
-      {/* Timeline */}
-      <div className="card p-4">
-        <h3 className="text-sm font-medium mb-4">Chronologie</h3>
-        {timeline.isLoading ? (
+      {/* Encounters timeline grouped by date */}
+      <div>
+        <h3 className="text-sm font-medium mb-3">Chronologie</h3>
+        {encounters.isLoading ? (
           <p className="text-sm text-ink-muted">Chargement…</p>
-        ) : !timeline.data || timeline.data.length === 0 ? (
+        ) : !encounters.data || encounters.data.length === 0 ? (
           <p className="text-sm text-ink-muted">Aucun événement</p>
         ) : (
-          <ol className="relative border-l-2 border-slate-200 ml-2 space-y-4">
-            {timeline.data.map((e, i) => {
-              const kind = KIND_LABEL[e.kind] ?? { label: e.kind, color: 'bg-slate-100 text-slate-700' };
-              return (
-                <li key={i} className="ml-4 pl-2">
-                  <span className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full bg-sigdep-500 border-2 border-white" />
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="text-xs text-ink-muted tabular-nums">{formatDate(e.date)}</span>
-                    <span className={`text-[11px] px-1.5 py-0.5 rounded ${kind.color}`}>{kind.label}</span>
-                    <span className="text-sm font-medium">{e.label}</span>
-                  </div>
-                  {e.detail && e.detail !== '—' && (
-                    <p className="text-sm text-ink-muted mt-0.5">{e.detail}</p>
-                  )}
-                </li>
-              );
-            })}
+          <ol className="space-y-3">
+            {encounters.data.map(day => (
+              <DayCard key={day.date} date={day.date} blocks={day.blocks} />
+            ))}
           </ol>
         )}
       </div>
+    </div>
+  );
+}
+
+function DayCard({ date, blocks }: { date: string; blocks: DateBlock[] }) {
+  const totalObs = blocks.reduce((n, b) => n + b.observations.length, 0);
+  const [open, setOpen] = useState(true);
+  const kinds = blocks.map(b => b.kind);
+
+  return (
+    <li className="card overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 text-left">
+        <span className="tabular-nums font-medium text-sm w-32 shrink-0">{formatDate(date)}</span>
+        <div className="flex gap-1 flex-wrap">
+          {kinds.map((k, i) => {
+            const meta = KIND_META[k] ?? { label: k, color: 'bg-slate-100 text-slate-700' };
+            return (
+              <span key={i} className={`text-[11px] px-1.5 py-0.5 rounded ${meta.color}`}>
+                {meta.label}
+              </span>
+            );
+          })}
+        </div>
+        <span className="ml-auto text-xs text-ink-muted">
+          {totalObs} obs.
+        </span>
+        <svg className={`h-4 w-4 text-ink-subtle transition ${open ? 'rotate-180' : ''}`}
+             viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="border-t border-slate-200 divide-y divide-slate-100">
+          {blocks.map((b, i) => (
+            <BlockRow key={i} block={b} />
+          ))}
+        </div>
+      )}
+    </li>
+  );
+}
+
+function BlockRow({ block }: { block: DateBlock }) {
+  const meta = KIND_META[block.kind] ?? { label: block.kind, color: 'bg-slate-100 text-slate-700' };
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-baseline gap-2 mb-2">
+        <span className={`text-[11px] px-1.5 py-0.5 rounded ${meta.color}`}>{meta.label}</span>
+        <span className="text-sm font-medium">{block.label}</span>
+      </div>
+      {block.observations.length === 0 ? (
+        <p className="text-xs text-ink-muted">—</p>
+      ) : (
+        <dl className="grid gap-x-6 gap-y-1 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+          {block.observations.map((o, i) => (
+            <div key={i} className="flex justify-between gap-2 border-b border-slate-50 py-0.5">
+              <dt className="text-ink-muted">{o.label}</dt>
+              <dd className="font-medium text-right tabular-nums">{o.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </div>
   );
 }

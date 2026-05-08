@@ -89,11 +89,18 @@ export type PatientDetail = {
   identifiers: string[];
 };
 
-export type TimelineEntry = {
+export type Observation = { label: string; value: string };
+
+export type DateBlock = {
   date: string;
-  kind: 'visit' | 'initiation' | 'lab';
+  kind: 'visit' | 'initiation' | 'closure' | 'lab';
   label: string;
-  detail: string | null;
+  observations: Observation[];
+};
+
+export type EncounterDay = {
+  date: string;
+  blocks: DateBlock[];
 };
 
 export function fetchPatients(q: string, page = 0, size = 25) {
@@ -108,8 +115,8 @@ export function fetchPatient(id: number) {
   return get<PatientDetail>(`/api/v1/patients/${id}`);
 }
 
-export function fetchPatientTimeline(id: number) {
-  return get<TimelineEntry[]>(`/api/v1/patients/${id}/timeline`);
+export function fetchPatientEncounters(id: number) {
+  return get<EncounterDay[]>(`/api/v1/patients/${id}/encounters`);
 }
 
 // --- Sites -----------------------------------------------------------------

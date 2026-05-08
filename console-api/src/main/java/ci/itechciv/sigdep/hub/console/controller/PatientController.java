@@ -1,9 +1,9 @@
 package ci.itechciv.sigdep.hub.console.controller;
 
 import ci.itechciv.sigdep.hub.domain.service.PatientQueryService;
+import ci.itechciv.sigdep.hub.domain.service.PatientQueryService.EncounterDay;
 import ci.itechciv.sigdep.hub.domain.service.PatientQueryService.PatientDetail;
 import ci.itechciv.sigdep.hub.domain.service.PatientQueryService.PatientPage;
-import ci.itechciv.sigdep.hub.domain.service.PatientQueryService.TimelineEntry;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -39,8 +39,8 @@ public class PatientController {
                               : ResponseEntity.ok(detail);
     }
 
-    @GetMapping("/{id}/timeline")
-    public List<TimelineEntry> timeline(@PathVariable long id) {
-        return service.timeline(id);
+    @GetMapping("/{id}/encounters")
+    public List<EncounterDay> encounters(@PathVariable long id) {
+        return service.encounters(id);
     }
 }
