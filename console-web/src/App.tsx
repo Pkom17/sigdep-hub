@@ -6,6 +6,7 @@ import { Landing } from "./pages/Landing";
 import { PatientDetail } from "./pages/PatientDetail";
 import { Patients } from "./pages/Patients";
 import { Sites } from "./pages/Sites";
+import { Biologie } from "./pages/Biologie";
 import { Stub } from "./pages/Stub";
 
 export function App() {
@@ -35,7 +36,7 @@ export function App() {
         <Route path="depistage" element={<Stub title="Dépistage" />} />
         <Route path="ptme" element={<Stub title="PTME" />} />
         <Route path="tpt" element={<Stub title="TPT" />} />
-        <Route path="biologie" element={<Stub title="Biologie" />} />
+        <Route path="biologie" element={<Biologie />} />
         <Route path="sync" element={<Stub title="Synchronisation" />} />
         <Route path="users" element={<Stub title="Utilisateurs" />} />
       </Route>

@@ -158,3 +158,113 @@ export function fetchSites(opts: {
 export function fetchRegions() {
   return get<RegionRef[]>('/api/v1/sites/regions');
 }
+
+// --- Biology ---------------------------------------------------------------
+
+export type MonthlySuppression = {
+  month: string;
+  total: number;
+  suppressed: number;
+  pct: number | null;
+};
+
+export type Cd4Distribution = {
+  lt200: number;
+  b200_350: number;
+  b350_500: number;
+  ge500: number;
+  total: number;
+};
+
+export type TopTest = { testName: string; count: number };
+
+export type BiologySummary = {
+  examsInPeriod: number;
+  examsAllTime: number;
+  lastExamDate: string | null;
+  viralSuppressionPct: number | null;
+  monthlySuppression: MonthlySuppression[];
+  cd4Distribution: Cd4Distribution;
+  topTests: TopTest[];
+  periodMonths: number;
+};
+
+export type ExamRow = {
+  id: number;
+  examDate: string | null;
+  testName: string;
+  valueNumeric: number | null;
+  valuePct: number | null;
+  valueText: string | null;
+  unit: string | null;
+  siteCode: string;
+  siteName: string;
+  patientId: number;
+  patientCode: string | null;
+};
+
+export function fetchBiologySummary(months: number, regionId?: number) {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  if (regionId) params.set('regionId', String(regionId));
+  return get<BiologySummary>(`/api/v1/biology/summary?${params}`);
+}
+
+export type ExamFilter = 'vl' | 'cd4' | 'all';
+
+export type ExamPage = {
+  content: ExamRow[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export function fetchBiologyExams(opts: {
+  test: ExamFilter;
+  months: number;
+  regionId?: number;
+  page?: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  if (opts.test !== 'all') params.set('test', opts.test);
+  params.set('months', String(opts.months));
+  if (opts.regionId) params.set('regionId', String(opts.regionId));
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<ExamPage>(`/api/v1/biology/exams?${params}`);
+}
+
+/**
+ * Trigger a CSV download for the given filter, sending the bearer token
+ * the same way as a normal API call so the backend can authorize the
+ * request and stream the file.
+ */
+export async function downloadBiologyCsv(opts: {
+  test: ExamFilter;
+  months: number;
+  regionId?: number;
+}): Promise<void> {
+  const params = new URLSearchParams();
+  if (opts.test !== 'all') params.set('test', opts.test);
+  params.set('months', String(opts.months));
+  if (opts.regionId) params.set('regionId', String(opts.regionId));
+  const url = `/api/v1/biology/exams.csv?${params}`;
+
+  const headers: Record<string, string> = {};
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const r = await fetch(url, { headers });
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText} on ${url}`);
+
+  const blob = await r.blob();
+  const filename = `biology-${opts.test}-${opts.months}m.csv`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+}
