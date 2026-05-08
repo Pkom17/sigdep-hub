@@ -7,6 +7,7 @@ import { PatientDetail } from "./pages/PatientDetail";
 import { Patients } from "./pages/Patients";
 import { Sites } from "./pages/Sites";
 import { Biologie } from "./pages/Biologie";
+import { Pepfar } from "./pages/Pepfar";
 import { Stub } from "./pages/Stub";
 
 export function App() {
@@ -27,7 +28,7 @@ export function App() {
       >
         <Route index element={<Navigate to="vue-ensemble" replace />} />
         <Route path="vue-ensemble" element={<Dashboard />} />
-        <Route path="pepfar" element={<Stub title="Indicateurs PEPFAR" />} />
+        <Route path="pepfar" element={<Pepfar />} />
         <Route path="patients" element={<Patients />} />
         <Route path="patients/:id" element={<PatientDetail />} />
         <Route path="sites" element={<Sites />} />

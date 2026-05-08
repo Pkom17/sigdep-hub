@@ -257,16 +257,17 @@ export async function downloadBiologyCsv(opts: {
   params.set('months', String(opts.months));
   if (opts.regionId) params.set('regionId', String(opts.regionId));
   const url = `/api/v1/biology/exams.csv?${params}`;
+  const filename = `biology-${opts.test}-${opts.months}m.csv`;
+  await downloadCsv(url, filename);
+}
 
+async function downloadCsv(url: string, filename: string): Promise<void> {
   const headers: Record<string, string> = {};
   const token = getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-
   const r = await fetch(url, { headers });
   if (!r.ok) throw new Error(`${r.status} ${r.statusText} on ${url}`);
-
   const blob = await r.blob();
-  const filename = `biology-${opts.test}-${opts.months}m.csv`;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;
@@ -274,4 +275,44 @@ export async function downloadBiologyCsv(opts: {
   a.click();
   a.remove();
   URL.revokeObjectURL(a.href);
+}
+
+// --- PEPFAR ----------------------------------------------------------------
+
+export type DisaggCell = { sex: string | null; ageBand: string; count: number };
+export type Disaggregated = { total: number; cells: DisaggCell[] };
+export type TxPvls = {
+  denominator: Disaggregated;
+  numerator: Disaggregated;
+  pct: number | null;
+};
+export type QuarterRange = {
+  fiscalYear: number;
+  quarter: number;
+  start: string;
+  end: string;
+};
+export type PepfarReport = {
+  period: QuarterRange;
+  txNew: Disaggregated;
+  txCurr: Disaggregated;
+  txPvls: TxPvls;
+};
+
+export function fetchPepfarReport(fy: number, q: number, regionId?: number) {
+  const params = new URLSearchParams();
+  params.set('fy', String(fy));
+  params.set('q', String(q));
+  if (regionId) params.set('regionId', String(regionId));
+  return get<PepfarReport>(`/api/v1/pepfar/report?${params}`);
+}
+
+export async function downloadPepfarCsv(fy: number, q: number, regionId?: number): Promise<void> {
+  const params = new URLSearchParams();
+  params.set('fy', String(fy));
+  params.set('q', String(q));
+  if (regionId) params.set('regionId', String(regionId));
+  const url = `/api/v1/pepfar/report.csv?${params}`;
+  const filename = `pepfar-FY${fy}Q${q}.csv`;
+  await downloadCsv(url, filename);
 }
