@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Persistent log of every sync batch the ingestion API receives. One row
+      per (entity_type, batch_id) call to /api/v1/sync/*. Powers the console
+      Synchronisation page (recent batches, daily volume, late sites view).
+
+      error_sample stores at most the first ~5 errors (label + occurrences),
+      not the full list — the volumes can be in the thousands per batch and
+      the value here is operational triage, not forensic audit.
+    -->
+    <changeSet id="029-create-sync-batch" author="itechciv" failOnError="true">
+        <createTable tableName="sync_batch" schemaName="audit">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="batch_id" type="VARCHAR(64)"
+                    remarks="Client-supplied batch UUID; not unique on its own (each entity type sends its own batch)."/>
+            <column name="site_id" type="BIGINT"
+                    remarks="Resolved site id; null if site code did not match any known site.">
+                <constraints foreignKeyName="fk_syncbatch_site"
+                             references="core.sites(id)"/>
+            </column>
+            <column name="site_code" type="VARCHAR(50)"
+                    remarks="Raw site code as sent by the client; preserved even when site_id is null."/>
+            <column name="entity_type" type="VARCHAR(40)"
+                    remarks="patients / visits / treatment_initiations / closures / lab_results / tpt_records / dispensations / backfill">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="received_count" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="accepted" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rejected" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="error_sample" type="JSONB"
+                    remarks="Up to 5 error entries: [{ label, count }]. Null when accepted == received."/>
+
+            <column name="started_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="finished_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="duration_ms" type="INTEGER"/>
+
+            <column name="status" type="VARCHAR(20)" defaultValue="ok"
+                    remarks="ok / partial (some rejected) / failed (exception before finish)"/>
+        </createTable>
+
+        <createIndex tableName="sync_batch" schemaName="audit"
+                     indexName="idx_syncbatch_finished">
+            <column name="finished_at" descending="true"/>
+        </createIndex>
+        <createIndex tableName="sync_batch" schemaName="audit"
+                     indexName="idx_syncbatch_site_finished">
+            <column name="site_id"/>
+            <column name="finished_at" descending="true"/>
+        </createIndex>
+        <createIndex tableName="sync_batch" schemaName="audit"
+                     indexName="idx_syncbatch_entity_finished">
+            <column name="entity_type"/>
+            <column name="finished_at" descending="true"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="sync_batch" schemaName="audit"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

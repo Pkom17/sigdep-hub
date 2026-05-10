@@ -3,6 +3,7 @@ package ci.itechciv.sigdep.hub.ingestion.controller;
 import ci.itechciv.sigdep.contracts.EntityType;
 import ci.itechciv.sigdep.contracts.SyncBatchRequest;
 import ci.itechciv.sigdep.contracts.SyncBatchResponse;
+import ci.itechciv.sigdep.contracts.SyncBatchResponse.RecordError;
 import ci.itechciv.sigdep.contracts.dto.ClosureDto;
 import ci.itechciv.sigdep.contracts.dto.DispensationDto;
 import ci.itechciv.sigdep.contracts.dto.LabResultDto;
@@ -13,12 +14,14 @@ import ci.itechciv.sigdep.contracts.dto.VisitDto;
 import ci.itechciv.sigdep.hub.domain.entity.Site;
 import ci.itechciv.sigdep.hub.domain.repository.SiteRepository;
 import ci.itechciv.sigdep.hub.domain.service.SiteResolver;
+import ci.itechciv.sigdep.hub.ingestion.log.SyncBatchLogger;
 import ci.itechciv.sigdep.hub.ingestion.writer.ClosureWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.InitiationWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.LabResultWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.PatientWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.TptWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.VisitWriter;
+import java.time.Instant;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +46,7 @@ public class SyncController {
     private final ClosureWriter closureWriter;
     private final LabResultWriter labResultWriter;
     private final TptWriter tptWriter;
+    private final SyncBatchLogger auditLog;
 
     public SyncController(SiteResolver siteResolver,
                           SiteRepository sites,
@@ -51,7 +55,8 @@ public class SyncController {
                           InitiationWriter initiationWriter,
                           ClosureWriter closureWriter,
                           LabResultWriter labResultWriter,
-                          TptWriter tptWriter) {
+                          TptWriter tptWriter,
+                          SyncBatchLogger auditLog) {
         this.siteResolver = siteResolver;
         this.sites = sites;
         this.patientWriter = patientWriter;
@@ -60,6 +65,7 @@ public class SyncController {
         this.closureWriter = closureWriter;
         this.labResultWriter = labResultWriter;
         this.tptWriter = tptWriter;
+        this.auditLog = auditLog;
     }
 
     @PostMapping("/patients")
@@ -67,12 +73,19 @@ public class SyncController {
         Site site = siteResolver.resolve(batch.siteCode(), null);
         log.info("Ingesting {} patients for site {} (batch {})",
                 batch.records().size(), site.getCode(), batch.batchId());
-
-        var result = patientWriter.upsertBatch(site.getId(), batch.records());
-        sites.touchLastSyncAt(site.getId());
-
-        return ResponseEntity.ok(new SyncBatchResponse(
-                batch.batchId(), result.accepted(), result.rejected(), result.errors()));
+        Instant t0 = Instant.now();
+        long auditId = auditLog.start(batch.batchId(), site.getId(), site.getCode(),
+                "patients", batch.records().size());
+        try {
+            var r = patientWriter.upsertBatch(site.getId(), batch.records());
+            sites.touchLastSyncAt(site.getId());
+            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors());
+            return ResponseEntity.ok(new SyncBatchResponse(
+                    batch.batchId(), r.accepted(), r.rejected(), r.errors()));
+        } catch (RuntimeException ex) {
+            auditLog.fail(auditId, t0, ex);
+            throw ex;
+        }
     }
 
     @PostMapping("/visits")
@@ -80,12 +93,19 @@ public class SyncController {
         Site site = siteResolver.resolve(batch.siteCode(), null);
         log.info("Ingesting {} visits for site {} (batch {})",
                 batch.records().size(), site.getCode(), batch.batchId());
-
-        var result = visitWriter.upsertBatch(site.getId(), batch.records());
-        sites.touchLastSyncAt(site.getId());
-
-        return ResponseEntity.ok(new SyncBatchResponse(
-                batch.batchId(), result.accepted(), result.rejected(), result.errors()));
+        Instant t0 = Instant.now();
+        long auditId = auditLog.start(batch.batchId(), site.getId(), site.getCode(),
+                "visits", batch.records().size());
+        try {
+            var r = visitWriter.upsertBatch(site.getId(), batch.records());
+            sites.touchLastSyncAt(site.getId());
+            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors());
+            return ResponseEntity.ok(new SyncBatchResponse(
+                    batch.batchId(), r.accepted(), r.rejected(), r.errors()));
+        } catch (RuntimeException ex) {
+            auditLog.fail(auditId, t0, ex);
+            throw ex;
+        }
     }
 
     @PostMapping("/treatment_initiations")
@@ -94,12 +114,19 @@ public class SyncController {
         Site site = siteResolver.resolve(batch.siteCode(), null);
         log.info("Ingesting {} treatment initiations for site {} (batch {})",
                 batch.records().size(), site.getCode(), batch.batchId());
-
-        var result = initiationWriter.upsertBatch(site.getId(), batch.records());
-        sites.touchLastSyncAt(site.getId());
-
-        return ResponseEntity.ok(new SyncBatchResponse(
-                batch.batchId(), result.accepted(), result.rejected(), result.errors()));
+        Instant t0 = Instant.now();
+        long auditId = auditLog.start(batch.batchId(), site.getId(), site.getCode(),
+                "treatment_initiations", batch.records().size());
+        try {
+            var r = initiationWriter.upsertBatch(site.getId(), batch.records());
+            sites.touchLastSyncAt(site.getId());
+            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors());
+            return ResponseEntity.ok(new SyncBatchResponse(
+                    batch.batchId(), r.accepted(), r.rejected(), r.errors()));
+        } catch (RuntimeException ex) {
+            auditLog.fail(auditId, t0, ex);
+            throw ex;
+        }
     }
 
     @PostMapping("/closures")
@@ -107,12 +134,19 @@ public class SyncController {
         Site site = siteResolver.resolve(batch.siteCode(), null);
         log.info("Ingesting {} closures for site {} (batch {})",
                 batch.records().size(), site.getCode(), batch.batchId());
-
-        var result = closureWriter.upsertBatch(site.getId(), batch.records());
-        sites.touchLastSyncAt(site.getId());
-
-        return ResponseEntity.ok(new SyncBatchResponse(
-                batch.batchId(), result.accepted(), result.rejected(), result.errors()));
+        Instant t0 = Instant.now();
+        long auditId = auditLog.start(batch.batchId(), site.getId(), site.getCode(),
+                "closures", batch.records().size());
+        try {
+            var r = closureWriter.upsertBatch(site.getId(), batch.records());
+            sites.touchLastSyncAt(site.getId());
+            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors());
+            return ResponseEntity.ok(new SyncBatchResponse(
+                    batch.batchId(), r.accepted(), r.rejected(), r.errors()));
+        } catch (RuntimeException ex) {
+            auditLog.fail(auditId, t0, ex);
+            throw ex;
+        }
     }
 
     @PostMapping("/lab_results")
@@ -120,12 +154,19 @@ public class SyncController {
         Site site = siteResolver.resolve(batch.siteCode(), null);
         log.info("Ingesting {} lab results for site {} (batch {})",
                 batch.records().size(), site.getCode(), batch.batchId());
-
-        var result = labResultWriter.upsertBatch(site.getId(), batch.records());
-        sites.touchLastSyncAt(site.getId());
-
-        return ResponseEntity.ok(new SyncBatchResponse(
-                batch.batchId(), result.accepted(), result.rejected(), result.errors()));
+        Instant t0 = Instant.now();
+        long auditId = auditLog.start(batch.batchId(), site.getId(), site.getCode(),
+                "lab_results", batch.records().size());
+        try {
+            var r = labResultWriter.upsertBatch(site.getId(), batch.records());
+            sites.touchLastSyncAt(site.getId());
+            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors());
+            return ResponseEntity.ok(new SyncBatchResponse(
+                    batch.batchId(), r.accepted(), r.rejected(), r.errors()));
+        } catch (RuntimeException ex) {
+            auditLog.fail(auditId, t0, ex);
+            throw ex;
+        }
     }
 
     @PostMapping("/tpt_records")
@@ -133,23 +174,60 @@ public class SyncController {
         Site site = siteResolver.resolve(batch.siteCode(), null);
         log.info("Ingesting {} TPT records for site {} (batch {})",
                 batch.records().size(), site.getCode(), batch.batchId());
-
-        var result = tptWriter.upsertBatch(site.getId(), batch.records());
-        sites.touchLastSyncAt(site.getId());
-
-        return ResponseEntity.ok(new SyncBatchResponse(
-                batch.batchId(), result.accepted(), result.rejected(), result.errors()));
+        Instant t0 = Instant.now();
+        long auditId = auditLog.start(batch.batchId(), site.getId(), site.getCode(),
+                "tpt_records", batch.records().size());
+        try {
+            var r = tptWriter.upsertBatch(site.getId(), batch.records());
+            sites.touchLastSyncAt(site.getId());
+            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors());
+            return ResponseEntity.ok(new SyncBatchResponse(
+                    batch.batchId(), r.accepted(), r.rejected(), r.errors()));
+        } catch (RuntimeException ex) {
+            auditLog.fail(auditId, t0, ex);
+            throw ex;
+        }
     }
 
+    /**
+     * Dispensations are not yet wired to a writer; we still log the batch as
+     * a pass-through (everything accepted) so volume / cadence shows up in
+     * the audit page.
+     */
     @PostMapping("/dispensations")
     public ResponseEntity<SyncBatchResponse> ingestDispensations(@RequestBody SyncBatchRequest<DispensationDto> batch) {
-        return ResponseEntity.ok(new SyncBatchResponse(batch.batchId(), batch.records().size(), 0, List.of()));
+        Site site = resolveOrNull(batch.siteCode());
+        Instant t0 = Instant.now();
+        long auditId = auditLog.start(batch.batchId(),
+                site == null ? null : site.getId(), batch.siteCode(),
+                "dispensations", batch.records().size());
+        auditLog.finish(auditId, t0, batch.records().size(), 0, List.<RecordError>of());
+        return ResponseEntity.ok(new SyncBatchResponse(
+                batch.batchId(), batch.records().size(), 0, List.of()));
     }
 
     @PostMapping("/{entityType}/backfill")
     public ResponseEntity<SyncBatchResponse> ingestBackfill(
             @PathVariable EntityType entityType,
             @RequestBody SyncBatchRequest<Object> batch) {
-        return ResponseEntity.ok(new SyncBatchResponse(batch.batchId(), batch.records().size(), 0, List.of()));
+        Site site = resolveOrNull(batch.siteCode());
+        Instant t0 = Instant.now();
+        long auditId = auditLog.start(batch.batchId(),
+                site == null ? null : site.getId(), batch.siteCode(),
+                "backfill_" + entityType.name().toLowerCase(java.util.Locale.ROOT),
+                batch.records().size());
+        auditLog.finish(auditId, t0, batch.records().size(), 0, List.<RecordError>of());
+        return ResponseEntity.ok(new SyncBatchResponse(
+                batch.batchId(), batch.records().size(), 0, List.of()));
+    }
+
+    /** Best-effort site lookup that swallows "not found" so audit still records. */
+    private Site resolveOrNull(String code) {
+        try {
+            return siteResolver.resolve(code, null);
+        } catch (RuntimeException ex) {
+            log.warn("Unknown site code {} in audit-only batch: {}", code, ex.toString());
+            return null;
+        }
     }
 }
