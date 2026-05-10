@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
-  Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import {
   downloadPharmacyCsv, fetchPharmacyDispensations, fetchPharmacySummary,
@@ -10,6 +10,7 @@ import {
 import { Kpi, formatInt, formatPercent } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
 import { GeoFilter, GeoScope } from '../components/GeoFilter';
+import { SortableTh, SortState } from '../components/SortableTh';
 
 const PERIODS = [
   { months: 12, label: '12 derniers mois' },
@@ -26,6 +27,7 @@ function formatDate(iso: string | null): string {
 export function Pharmacie() {
   const [months, setMonths] = useState(12);
   const [scope, setScope] = useState<GeoScope>({});
+  const [sort, setSort] = useState<SortState>(null);
   const [page, setPage] = useState(0);
   const [exporting, setExporting] = useState(false);
   const size = 50;
@@ -35,9 +37,11 @@ export function Pharmacie() {
     queryFn: () => fetchPharmacySummary(months, scope),
   });
   const dispensations = useQuery({
-    queryKey: ['pharmacy-dispensations', months, scope, page],
-    queryFn: () => fetchPharmacyDispensations({ months, ...scope, page, size }),
+    queryKey: ['pharmacy-dispensations', months, scope, sort, page],
+    queryFn: () => fetchPharmacyDispensations({ months, ...scope, sort, page, size }),
   });
+
+  const onSort = (s: SortState) => { setSort(s); setPage(0); };
 
   const totalPages = dispensations.data
     ? Math.max(1, Math.ceil(dispensations.data.total / dispensations.data.size))
@@ -112,12 +116,15 @@ export function Pharmacie() {
               <div className="h-full flex items-center justify-center text-ink-muted text-sm">—</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={summary.data.monthly} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
+                <BarChart data={summary.data.monthly} margin={{ top: 24, right: 8, left: 0, bottom: 0 }}>
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="#94a3b8" />
                   <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
                   <Tooltip contentStyle={{ borderRadius: 6, fontSize: 12 }}
                            formatter={(v) => [formatInt(v as number), 'Dispensations']} />
-                  <Bar dataKey="count" fill="#009d8e" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="count" fill="#009d8e" radius={[3, 3, 0, 0]}>
+                    <LabelList dataKey="count" position="top"
+                               style={{ fill: '#475569', fontSize: 11, fontWeight: 500 }} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -136,12 +143,15 @@ export function Pharmacie() {
               <div className="h-full flex items-center justify-center text-ink-muted text-sm">—</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={durBars} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
+                <BarChart data={durBars} margin={{ top: 24, right: 8, left: 0, bottom: 0 }}>
                   <XAxis dataKey="bucket" tick={{ fontSize: 11 }} stroke="#94a3b8" />
                   <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
                   <Tooltip contentStyle={{ borderRadius: 6, fontSize: 12 }}
                            formatter={(v) => [formatInt(v as number), 'Dispensations']} />
-                  <Bar dataKey="count" fill="#7c3aed" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="count" fill="#7c3aed" radius={[3, 3, 0, 0]}>
+                    <LabelList dataKey="count" position="top"
+                               style={{ fill: '#475569', fontSize: 11, fontWeight: 500 }} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -186,13 +196,13 @@ export function Pharmacie() {
         <table className="w-full text-sm">
           <thead className="thead-sigdep text-left">
             <tr className="text-left">
-              <th className="px-4 py-2 font-medium">Date</th>
-              <th className="px-4 py-2 font-medium">Patient</th>
-              <th className="px-4 py-2 font-medium">Régime ARV</th>
-              <th className="px-4 py-2 font-medium text-right">ARV (j)</th>
+              <SortableTh k="date"       sort={sort} onSort={onSort}>Date</SortableTh>
+              <SortableTh k="patient"    sort={sort} onSort={onSort}>Patient</SortableTh>
+              <SortableTh k="arvRegimen" sort={sort} onSort={onSort}>Régime ARV</SortableTh>
+              <SortableTh k="arvDays"    sort={sort} onSort={onSort} align="right">ARV (j)</SortableTh>
               <th className="px-4 py-2 font-medium text-right">CTX (j)</th>
               <th className="px-4 py-2 font-medium">Prochaine visite</th>
-              <th className="px-4 py-2 font-medium">Site</th>
+              <SortableTh k="site"       sort={sort} onSort={onSort}>Site</SortableTh>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">

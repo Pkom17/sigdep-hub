@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -213,9 +214,25 @@ public class BiologyService {
      * captures them as two separate rows). Anything else returns each row
      * unchanged.
      */
-    public ExamPage exams(String test, int months, Long regionId, Long districtId, Long siteId, int page, int size) {
+    private static final Map<String, String> EXAM_SORTABLE = Map.of(
+            "date",     "lr.exam_date",
+            "patient",  "lr.patient_id",
+            "site",     "site.code",
+            "testName", "lr.test_name",
+            "value",    "lr.value_numeric"
+    );
+
+    private static final Map<String, String> CD4_SORTABLE = Map.of(
+            "date",    "lr.exam_date",
+            "patient", "lr.patient_id",
+            "site",    "s.code"
+    );
+
+    public ExamPage exams(String test, int months, Long regionId, Long districtId, Long siteId,
+                          String sort, String dir,
+                          int page, int size) {
         if ("cd4".equals(test)) {
-            return cd4Exams(months, regionId, districtId, siteId, page, size);
+            return cd4Exams(months, regionId, districtId, siteId, sort, dir, page, size);
         }
 
         int safeSize = Math.max(1, Math.min(500, size));
@@ -254,7 +271,8 @@ public class BiologyService {
                         + " FROM core.lab_results lr" + region
                         + " JOIN core.sites site ON site.id = lr.site_id"
                         + where
-                        + " ORDER BY lr.exam_date DESC NULLS LAST, lr.id DESC"
+                        + SortSpec.orderBy(sort, dir, EXAM_SORTABLE,
+                                "lr.exam_date DESC NULLS LAST, lr.id DESC")
                         + " LIMIT ? OFFSET ?",
                 BiologyService::mapExam,
                 pagedArgs.toArray());
@@ -267,7 +285,9 @@ public class BiologyService {
      * absolute count ("Numération des lymphocytes CD4") and the percentage
      * ("CD4%") are surfaced as separate columns; either can be NULL.
      */
-    private ExamPage cd4Exams(int months, Long regionId, Long districtId, Long siteId, int page, int size) {
+    private ExamPage cd4Exams(int months, Long regionId, Long districtId, Long siteId,
+                              String sort, String dir,
+                              int page, int size) {
         int safeSize = Math.max(1, Math.min(500, size));
         int safePage = Math.max(0, page);
         int offset = safePage * safeSize;
@@ -329,7 +349,8 @@ public class BiologyService {
                         + "   AND lr.value_numeric IS NOT NULL"
                         + "   AND lr.exam_date >= ?"
                         + " GROUP BY lr.patient_id, lr.exam_date, s.id, s.code, s.name"
-                        + " ORDER BY lr.exam_date DESC NULLS LAST, lr.patient_id DESC"
+                        + SortSpec.orderBy(sort, dir, CD4_SORTABLE,
+                                "lr.exam_date DESC NULLS LAST, lr.patient_id DESC")
                         + " LIMIT ? OFFSET ?",
                 (rs, i) -> {
                     java.sql.Date d = rs.getDate("exam_date");

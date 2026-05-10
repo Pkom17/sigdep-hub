@@ -5,6 +5,7 @@ import { downloadPatientsCsv, fetchPatients } from '../api/client';
 import { formatInt } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
 import { GeoFilter, GeoScope } from '../components/GeoFilter';
+import { SortableTh, SortState } from '../components/SortableTh';
 
 function age(birthDate: string | null): string {
   if (!birthDate) return '—';
@@ -27,14 +28,17 @@ const SEX_LABEL: Record<string, string> = { M: 'Homme', F: 'Femme' };
 export function Patients() {
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<GeoScope>({});
+  const [sort, setSort] = useState<SortState>(null);
   const [page, setPage] = useState(0);
   const [exporting, setExporting] = useState(false);
   const size = 25;
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['patients', query, scope, page],
-    queryFn: () => fetchPatients({ q: query, ...scope, page, size }),
+    queryKey: ['patients', query, scope, sort, page],
+    queryFn: () => fetchPatients({ q: query, ...scope, sort, page, size }),
   });
+
+  const onSort = (s: SortState) => { setSort(s); setPage(0); };
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.size)) : 1;
 
@@ -73,15 +77,15 @@ export function Patients() {
           <table className="w-full text-sm">
             <thead className="thead-sigdep text-left">
               <tr className="text-left">
-                <th className="px-4 py-2 font-medium">Identifiant</th>
-                <th className="px-4 py-2 font-medium">UPID</th>
-                <th className="px-4 py-2 font-medium">Sexe</th>
-                <th className="px-4 py-2 font-medium">Âge</th>
-                <th className="px-4 py-2 font-medium">Date init. ARV</th>
+                <SortableTh k="codeArv"     sort={sort} onSort={onSort}>Identifiant</SortableTh>
+                <SortableTh k="upid"        sort={sort} onSort={onSort}>UPID</SortableTh>
+                <SortableTh k="sex"         sort={sort} onSort={onSort}>Sexe</SortableTh>
+                <SortableTh k="birthDate"   sort={sort} onSort={onSort}>Âge</SortableTh>
+                <SortableTh k="arvInitDate" sort={sort} onSort={onSort}>Date init. ARV</SortableTh>
                 <th className="px-4 py-2 font-medium">Régime initial</th>
-                <th className="px-4 py-2 font-medium">Dernière visite</th>
+                <SortableTh k="lastVisit"   sort={sort} onSort={onSort}>Dernière visite</SortableTh>
                 <th className="px-4 py-2 font-medium">Dernier régime</th>
-                <th className="px-4 py-2 font-medium">Site</th>
+                <SortableTh k="site"        sort={sort} onSort={onSort}>Site</SortableTh>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

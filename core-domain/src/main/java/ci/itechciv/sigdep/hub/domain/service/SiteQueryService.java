@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -20,8 +21,19 @@ public class SiteQueryService {
      * @param status one of "all" / "online" (<24h) / "late" (24h..7j) /
      *               "offline" (>7j or null). null/empty == all.
      */
+    private static final Map<String, String> SITE_SORTABLE = Map.of(
+            "code",         "s.code",
+            "name",         "s.name",
+            "region",       "r.name",
+            "district",     "d.name",
+            "facilityType", "s.facility_type",
+            "patientCount", "patient_count",
+            "lastSyncAt",   "s.last_sync_at"
+    );
+
     public SitePage list(String search, String status,
                          Long regionId, Long districtId, Long siteId,
+                         String sort, String dir,
                          int page, int size) {
         int safeSize = Math.max(1, Math.min(200, size));
         int safePage = Math.max(0, page);
@@ -74,7 +86,9 @@ public class SiteQueryService {
                        r.id   AS region_id,   r.name AS region_name,
                        (SELECT count(*) FROM core.patients p
                           WHERE p.site_id = s.id AND p.voided = FALSE) AS patient_count
-                """ + join + where + " ORDER BY s.code ASC LIMIT ? OFFSET ?";
+                """ + join + where
+                + SortSpec.orderBy(sort, dir, SITE_SORTABLE, "s.code ASC")
+                + " LIMIT ? OFFSET ?";
 
         List<Object> pagedArgs = new ArrayList<>(args);
         pagedArgs.add(safeSize);

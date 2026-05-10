@@ -4,6 +4,7 @@ import { fetchSites, SiteStatus } from '../api/client';
 import { formatInt } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
 import { GeoFilter, GeoScope } from '../components/GeoFilter';
+import { SortableTh, SortState } from '../components/SortableTh';
 
 const STATUS_TABS: { value: SiteStatus; label: string }[] = [
   { value: 'all',     label: 'Tous' },
@@ -42,13 +43,16 @@ export function Sites() {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<SiteStatus>('all');
   const [scope, setScope] = useState<GeoScope>({});
+  const [sort, setSort] = useState<SortState>(null);
   const [page, setPage] = useState(0);
   const size = 50;
 
   const sites = useQuery({
-    queryKey: ['sites', query, status, scope, page],
-    queryFn: () => fetchSites({ q: query, status, ...scope, page, size }),
+    queryKey: ['sites', query, status, scope, sort, page],
+    queryFn: () => fetchSites({ q: query, status, ...scope, sort, page, size }),
   });
+
+  const onSort = (s: SortState) => { setSort(s); setPage(0); };
 
   const totalPages = sites.data ? Math.max(1, Math.ceil(sites.data.total / sites.data.size)) : 1;
 
@@ -89,12 +93,12 @@ export function Sites() {
         <table className="w-full text-sm">
           <thead className="thead-sigdep text-left">
             <tr className="text-left">
-              <th className="px-4 py-2 font-medium">Code</th>
-              <th className="px-4 py-2 font-medium">Nom</th>
-              <th className="px-4 py-2 font-medium">Région / District</th>
-              <th className="px-4 py-2 font-medium">Type</th>
-              <th className="px-4 py-2 font-medium text-right">Patients</th>
-              <th className="px-4 py-2 font-medium">Dernier sync</th>
+              <SortableTh k="code"          sort={sort} onSort={onSort}>Code</SortableTh>
+              <SortableTh k="name"          sort={sort} onSort={onSort}>Nom</SortableTh>
+              <SortableTh k="region"        sort={sort} onSort={onSort}>Région / District</SortableTh>
+              <SortableTh k="facilityType"  sort={sort} onSort={onSort}>Type</SortableTh>
+              <SortableTh k="patientCount"  sort={sort} onSort={onSort} align="right">Patients</SortableTh>
+              <SortableTh k="lastSyncAt"    sort={sort} onSort={onSort}>Dernier sync</SortableTh>
               <th className="px-4 py-2 font-medium">SIGDEP</th>
             </tr>
           </thead>

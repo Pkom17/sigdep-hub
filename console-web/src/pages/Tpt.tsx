@@ -10,6 +10,7 @@ import {
 import { Kpi, formatInt, formatPercent } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
 import { GeoFilter, GeoScope } from '../components/GeoFilter';
+import { SortableTh, SortState } from '../components/SortableTh';
 
 const PERIODS = [
   { months: 12, label: '12 derniers mois' },
@@ -27,6 +28,7 @@ function formatDate(iso: string | null): string {
 export function Tpt() {
   const [months, setMonths] = useState(60);
   const [scope, setScope] = useState<GeoScope>({});
+  const [sort, setSort] = useState<SortState>(null);
   const [page, setPage] = useState(0);
   const [exporting, setExporting] = useState(false);
   const size = 50;
@@ -36,9 +38,11 @@ export function Tpt() {
     queryFn: () => fetchTptSummary(months, scope),
   });
   const records = useQuery({
-    queryKey: ['tpt-records', months, scope, page],
-    queryFn: () => fetchTptRecords({ months, ...scope, page, size }),
+    queryKey: ['tpt-records', months, scope, sort, page],
+    queryFn: () => fetchTptRecords({ months, ...scope, sort, page, size }),
   });
+
+  const onSort = (s: SortState) => { setSort(s); setPage(0); };
 
   const totalPages = records.data ? Math.max(1, Math.ceil(records.data.total / records.data.size)) : 1;
 
@@ -137,15 +141,15 @@ export function Tpt() {
         <table className="w-full text-sm">
           <thead className="thead-sigdep text-left">
             <tr className="text-left">
-              <th className="px-4 py-2 font-medium">Date</th>
-              <th className="px-4 py-2 font-medium">Patient</th>
-              <th className="px-4 py-2 font-medium">Statut</th>
-              <th className="px-4 py-2 font-medium">Protocole</th>
+              <SortableTh k="date"       sort={sort} onSort={onSort}>Date</SortableTh>
+              <SortableTh k="patient"    sort={sort} onSort={onSort}>Patient</SortableTh>
+              <SortableTh k="tptStatus"  sort={sort} onSort={onSort}>Statut</SortableTh>
+              <SortableTh k="tptRegimen" sort={sort} onSort={onSort}>Protocole</SortableTh>
               <th className="px-4 py-2 font-medium">Suivi</th>
               <th className="px-4 py-2 font-medium">Fin</th>
               <th className="px-4 py-2 font-medium">Résultat</th>
               <th className="px-4 py-2 font-medium">Observance</th>
-              <th className="px-4 py-2 font-medium">Site</th>
+              <SortableTh k="site"       sort={sort} onSort={onSort}>Site</SortableTh>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">

@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -157,7 +158,18 @@ public class ClinicService {
                 .divide(new BigDecimal(d), 1, RoundingMode.HALF_UP);
     }
 
-    public VisitPage visits(int months, Long regionId, Long districtId, Long siteId, int page, int size) {
+    private static final Map<String, String> VISIT_SORTABLE = Map.of(
+            "date",       "v.visit_date",
+            "patient",    "v.patient_id",
+            "site",       "site.code",
+            "weight",     "v.weight_kg",
+            "bmi",        "v.bmi",
+            "arvRegimen", "v.arv_regimen"
+    );
+
+    public VisitPage visits(int months, Long regionId, Long districtId, Long siteId,
+                            String sort, String dir,
+                            int page, int size) {
         int safeSize = Math.max(1, Math.min(500, size));
         int safePage = Math.max(0, page);
         int offset = safePage * safeSize;
@@ -207,7 +219,8 @@ public class ClinicService {
                         + " FROM core.visits v"
                         + " JOIN core.sites site ON site.id = v.site_id" + geoJoin
                         + " WHERE v.voided = FALSE AND v.visit_date >= ?"
-                        + " ORDER BY v.visit_date DESC NULLS LAST, v.id DESC"
+                        + SortSpec.orderBy(sort, dir, VISIT_SORTABLE,
+                                "v.visit_date DESC NULLS LAST, v.id DESC")
                         + " LIMIT ? OFFSET ?",
                 (rs, i) -> {
                     short arvDays = rs.getShort("arv_treatment_days");

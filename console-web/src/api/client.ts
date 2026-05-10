@@ -113,6 +113,7 @@ export function fetchPatients(opts: {
   regionId?: number;
   districtId?: number;
   siteId?: number;
+  sort?: SortQ;
   page?: number;
   size?: number;
 }) {
@@ -121,6 +122,7 @@ export function fetchPatients(opts: {
   if (opts.regionId) params.set('regionId', String(opts.regionId));
   if (opts.districtId) params.set('districtId', String(opts.districtId));
   if (opts.siteId) params.set('siteId', String(opts.siteId));
+  appendSort(params, opts.sort ?? null);
   params.set('page', String(opts.page ?? 0));
   params.set('size', String(opts.size ?? 25));
   return get<PatientPage>(`/api/v1/patients?${params}`);
@@ -192,12 +194,22 @@ export function appendScope(params: URLSearchParams, scope: GeoScopeQ): void {
   if (scope.siteId)     params.set('siteId',     String(scope.siteId));
 }
 
+/** Sort spec sent to listing endpoints. `null` means "use the server default". */
+export type SortQ = { key: string; dir: 'asc' | 'desc' } | null;
+
+export function appendSort(params: URLSearchParams, sort: SortQ): void {
+  if (!sort) return;
+  params.set('sort', sort.key);
+  params.set('dir', sort.dir);
+}
+
 export function fetchSites(opts: {
   q?: string;
   status?: SiteStatus;
   regionId?: number;
   districtId?: number;
   siteId?: number;
+  sort?: SortQ;
   page?: number;
   size?: number;
 }) {
@@ -207,6 +219,7 @@ export function fetchSites(opts: {
   if (opts.regionId) params.set('regionId', String(opts.regionId));
   if (opts.districtId) params.set('districtId', String(opts.districtId));
   if (opts.siteId) params.set('siteId', String(opts.siteId));
+  appendSort(params, opts.sort ?? null);
   params.set('page', String(opts.page ?? 0));
   params.set('size', String(opts.size ?? 50));
   return get<SitePage>(`/api/v1/sites?${params}`);
@@ -295,6 +308,7 @@ export function fetchBiologyExams(opts: {
   regionId?: number;
   districtId?: number;
   siteId?: number;
+  sort?: SortQ;
   page?: number;
   size?: number;
 }) {
@@ -302,6 +316,7 @@ export function fetchBiologyExams(opts: {
   if (opts.test !== 'all') params.set('test', opts.test);
   params.set('months', String(opts.months));
   appendScope(params, opts);
+  appendSort(params, opts.sort ?? null);
   params.set('page', String(opts.page ?? 0));
   params.set('size', String(opts.size ?? 50));
   return get<ExamPage>(`/api/v1/biology/exams?${params}`);
@@ -440,12 +455,14 @@ export function fetchTptRecords(opts: {
   regionId?: number;
   districtId?: number;
   siteId?: number;
+  sort?: SortQ;
   page?: number;
   size?: number;
 }) {
   const params = new URLSearchParams();
   params.set('months', String(opts.months));
   appendScope(params, opts);
+  appendSort(params, opts.sort ?? null);
   params.set('page', String(opts.page ?? 0));
   params.set('size', String(opts.size ?? 50));
   return get<TptRecordPage>(`/api/v1/tpt/records?${params}`);
@@ -519,12 +536,14 @@ export function fetchClinicVisits(opts: {
   regionId?: number;
   districtId?: number;
   siteId?: number;
+  sort?: SortQ;
   page?: number;
   size?: number;
 }) {
   const params = new URLSearchParams();
   params.set('months', String(opts.months));
   appendScope(params, opts);
+  appendSort(params, opts.sort ?? null);
   params.set('page', String(opts.page ?? 0));
   params.set('size', String(opts.size ?? 50));
   return get<VisitPage>(`/api/v1/clinic/visits?${params}`);
@@ -595,12 +614,14 @@ export function fetchPharmacyDispensations(opts: {
   regionId?: number;
   districtId?: number;
   siteId?: number;
+  sort?: SortQ;
   page?: number;
   size?: number;
 }) {
   const params = new URLSearchParams();
   params.set('months', String(opts.months));
   appendScope(params, opts);
+  appendSort(params, opts.sort ?? null);
   params.set('page', String(opts.page ?? 0));
   params.set('size', String(opts.size ?? 50));
   return get<DispensationPage>(`/api/v1/pharmacy/dispensations?${params}`);

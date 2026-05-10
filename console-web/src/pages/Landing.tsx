@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Bar,
   BarChart,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -131,7 +132,7 @@ export function Landing() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={data?.activeFile ?? []}
-                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                  margin={{ top: 24, right: 8, left: 0, bottom: 0 }}
                 >
                   <XAxis
                     dataKey="month"
@@ -143,7 +144,10 @@ export function Landing() {
                     contentStyle={{ borderRadius: 6, fontSize: 12 }}
                     formatter={(v: number) => [formatInt(v), "Patients"]}
                   />
-                  <Bar dataKey="count" fill="#009d8e" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="count" fill="#009d8e" radius={[3, 3, 0, 0]}>
+                    <LabelList dataKey="count" position="top"
+                               style={{ fill: '#475569', fontSize: 11, fontWeight: 500 }} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}

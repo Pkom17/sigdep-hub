@@ -30,9 +30,11 @@ public class SiteController {
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) Long districtId,
             @RequestParam(required = false) Long siteId,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return service.list(q, status, regionId, districtId, siteId, page, size);
+        return service.list(q, status, regionId, districtId, siteId, sort, dir, page, size);
     }
 
     @GetMapping("/regions")

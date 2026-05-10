@@ -3,6 +3,7 @@ package ci.itechciv.sigdep.hub.domain.service;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -20,7 +21,19 @@ public class PatientQueryService {
         this.jdbc = jdbc;
     }
 
+    private static final Map<String, String> PATIENT_SORTABLE = Map.of(
+            "id",          "p.id",
+            "codeArv",     "code_arv",
+            "upid",        "upid",
+            "sex",         "p.sex",
+            "birthDate",   "p.birth_date",
+            "arvInitDate", "arv_init_date",
+            "lastVisit",   "last_visit_date",
+            "site",        "s.code"
+    );
+
     public PatientPage list(String search, Long regionId, Long districtId, Long siteId,
+                            String sort, String dir,
                             int page, int size) {
         int safeSize = Math.max(1, Math.min(500, size));
         int safePage = Math.max(0, page);
@@ -85,7 +98,7 @@ public class PatientQueryService {
                 + "          ORDER BY v.visit_date DESC NULLS LAST, v.id DESC"
                 + "          LIMIT 1) AS last_arv_regimen"
                 + " " + fromAndJoins + " " + where
-                + " ORDER BY p.id DESC"
+                + SortSpec.orderBy(sort, dir, PATIENT_SORTABLE, "p.id DESC")
                 + " LIMIT ? OFFSET ?";
 
         List<Object> pagedArgs = new ArrayList<>(args);

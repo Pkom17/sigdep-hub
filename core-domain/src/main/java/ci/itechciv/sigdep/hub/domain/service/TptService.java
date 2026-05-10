@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -146,7 +147,17 @@ public class TptService {
                 months);
     }
 
-    public RecordPage records(int months, Long regionId, Long districtId, Long siteId, int page, int size) {
+    private static final Map<String, String> TPT_SORTABLE = Map.of(
+            "date",       "t.record_date",
+            "patient",    "t.patient_id",
+            "site",       "site.code",
+            "tptStatus",  "t.tpt_status",
+            "tptRegimen", "t.tpt_regimen"
+    );
+
+    public RecordPage records(int months, Long regionId, Long districtId, Long siteId,
+                              String sort, String dir,
+                              int page, int size) {
         int safeSize = Math.max(1, Math.min(500, size));
         int safePage = Math.max(0, page);
         int offset = safePage * safeSize;
@@ -192,7 +203,8 @@ public class TptService {
                         + " FROM core.tpt_records t"
                         + " JOIN core.sites site ON site.id = t.site_id" + geoJoin
                         + " WHERE t.voided = FALSE AND t.record_date >= ?"
-                        + " ORDER BY t.record_date DESC NULLS LAST, t.id DESC"
+                        + SortSpec.orderBy(sort, dir, TPT_SORTABLE,
+                                "t.record_date DESC NULLS LAST, t.id DESC")
                         + " LIMIT ? OFFSET ?",
                 (rs, i) -> new TptRecord(
                         rs.getLong("id"),

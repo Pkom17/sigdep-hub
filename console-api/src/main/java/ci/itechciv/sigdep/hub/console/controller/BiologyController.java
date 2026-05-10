@@ -42,10 +42,12 @@ public class BiologyController {
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) Long districtId,
             @RequestParam(required = false) Long siteId,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         return service.exams(test, Math.max(1, Math.min(60, months)),
-                regionId, districtId, siteId, page, size);
+                regionId, districtId, siteId, sort, dir, page, size);
     }
 
     /** CSV export. Caps at 5,000 rows to keep memory bounded. */
@@ -60,7 +62,7 @@ public class BiologyController {
 
         int safeMonths = Math.max(1, Math.min(60, months));
         ExamPage page = service.exams(test, safeMonths,
-                regionId, districtId, siteId, 0, 5000);
+                regionId, districtId, siteId, null, null, 0, 5000);
 
         String filename = "biology-" + (test == null ? "all" : test) + "-" + safeMonths + "m.csv";
         response.setContentType("text/csv;charset=UTF-8");

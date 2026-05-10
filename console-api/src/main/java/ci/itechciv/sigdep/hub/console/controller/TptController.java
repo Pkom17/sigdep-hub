@@ -41,10 +41,12 @@ public class TptController {
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) Long districtId,
             @RequestParam(required = false) Long siteId,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         return service.records(Math.max(1, Math.min(120, months)),
-                regionId, districtId, siteId, page, size);
+                regionId, districtId, siteId, sort, dir, page, size);
     }
 
     @GetMapping(value = "/records.csv", produces = "text/csv;charset=UTF-8")
@@ -57,7 +59,7 @@ public class TptController {
 
         int safeMonths = Math.max(1, Math.min(120, months));
         RecordPage page = service.records(safeMonths,
-                regionId, districtId, siteId, 0, 5000);
+                regionId, districtId, siteId, null, null, 0, 5000);
 
         String filename = "tpt-" + safeMonths + "m.csv";
         response.setContentType("text/csv;charset=UTF-8");

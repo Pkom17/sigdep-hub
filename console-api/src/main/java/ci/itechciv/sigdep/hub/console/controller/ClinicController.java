@@ -41,10 +41,12 @@ public class ClinicController {
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) Long districtId,
             @RequestParam(required = false) Long siteId,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         return service.visits(Math.max(1, Math.min(120, months)),
-                regionId, districtId, siteId, page, size);
+                regionId, districtId, siteId, sort, dir, page, size);
     }
 
     @GetMapping(value = "/visits.csv", produces = "text/csv;charset=UTF-8")
@@ -56,7 +58,7 @@ public class ClinicController {
             HttpServletResponse response) throws IOException {
 
         int safeMonths = Math.max(1, Math.min(120, months));
-        VisitPage page = service.visits(safeMonths, regionId, districtId, siteId, 0, 5000);
+        VisitPage page = service.visits(safeMonths, regionId, districtId, siteId, null, null, 0, 5000);
 
         String filename = "clinique-" + safeMonths + "m.csv";
         response.setContentType("text/csv;charset=UTF-8");

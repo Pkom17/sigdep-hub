@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import {
   Bar,
   BarChart,
+  LabelList,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -22,6 +23,7 @@ import { CardHeader } from "../components/CardHeader";
 import { GeoFilter, GeoScope } from "../components/GeoFilter";
 import { Kpi, formatInt, formatPercent } from "../components/Kpi";
 import { PageHeader } from "../components/PageHeader";
+import { SortableTh, SortState } from "../components/SortableTh";
 
 const PERIODS = [
   { months: 12, label: "12 derniers mois" },
@@ -54,6 +56,7 @@ export function Biologie() {
   const [months, setMonths] = useState(12);
   const [scope, setScope] = useState<GeoScope>({});
   const [tab, setTab] = useState<ExamFilter>("vl");
+  const [sort, setSort] = useState<SortState>(null);
   const [page, setPage] = useState(0);
   const [exporting, setExporting] = useState(false);
   const size = 50;
@@ -64,10 +67,12 @@ export function Biologie() {
   });
 
   const exams = useQuery({
-    queryKey: ["biology-exams", tab, months, scope, page],
+    queryKey: ["biology-exams", tab, months, scope, sort, page],
     queryFn: () =>
-      fetchBiologyExams({ test: tab, months, ...scope, page, size }),
+      fetchBiologyExams({ test: tab, months, ...scope, sort, page, size }),
   });
+
+  const onSort = (s: SortState) => { setSort(s); setPage(0); };
 
   const cd4 = summary.data?.cd4Distribution;
   const cd4Bars =
@@ -236,7 +241,7 @@ export function Biologie() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={cd4Bars}
-                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                  margin={{ top: 24, right: 8, left: 0, bottom: 0 }}
                 >
                   <XAxis
                     dataKey="bucket"
@@ -248,7 +253,10 @@ export function Biologie() {
                     contentStyle={{ borderRadius: 6, fontSize: 12 }}
                     formatter={(v) => [formatInt(v as number), "Examens"]}
                   />
-                  <Bar dataKey="count" fill="#7c3aed" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="count" fill="#7c3aed" radius={[3, 3, 0, 0]}>
+                    <LabelList dataKey="count" position="top"
+                               style={{ fill: '#475569', fontSize: 11, fontWeight: 500 }} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -294,8 +302,8 @@ export function Biologie() {
         <table className="w-full text-sm">
           <thead className="thead-sigdep text-left">
             <tr className="text-left">
-              <th className="px-4 py-2 font-medium">Date</th>
-              <th className="px-4 py-2 font-medium">Patient</th>
+              <SortableTh k="date"    sort={sort} onSort={onSort}>Date</SortableTh>
+              <SortableTh k="patient" sort={sort} onSort={onSort}>Patient</SortableTh>
               {tab === "cd4" ? (
                 <>
                   <th className="px-4 py-2 font-medium text-right">
@@ -305,11 +313,11 @@ export function Biologie() {
                 </>
               ) : (
                 <>
-                  <th className="px-4 py-2 font-medium">Examen</th>
-                  <th className="px-4 py-2 font-medium text-right">Valeur</th>
+                  <SortableTh k="testName" sort={sort} onSort={onSort}>Examen</SortableTh>
+                  <SortableTh k="value"    sort={sort} onSort={onSort} align="right">Valeur</SortableTh>
                 </>
               )}
-              <th className="px-4 py-2 font-medium">Site</th>
+              <SortableTh k="site" sort={sort} onSort={onSort}>Site</SortableTh>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
