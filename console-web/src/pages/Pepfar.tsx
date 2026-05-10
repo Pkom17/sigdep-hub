@@ -8,6 +8,7 @@ import {
   fetchRegions,
 } from "../api/client";
 import { Kpi, formatInt, formatPercent } from "../components/Kpi";
+import { PageHeader } from "../components/PageHeader";
 
 const AGE_BANDS = ["<15", "15-24", "25-49", "50+", "unknown"] as const;
 const SEXES: ReadonlyArray<{ key: "M" | "F"; label: string }> = [
@@ -94,20 +95,13 @@ export function Pepfar() {
 
   return (
     <div className="px-6 py-6">
-      <div className="flex items-baseline justify-between mb-4 gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Indicateurs PEPFAR
-          </h1>
-          <p className="text-sm text-ink-muted">
-            TX_NEW &middot; TX_CURR &middot; TX_PVLS &middot; Trimestre Fiscal
-            PEPFAR
-            {report.data && (
-              <> &middot; au {formatDateFr(report.data.period.end)}</>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
+      <PageHeader
+        title="Indicateurs PEPFAR"
+        subtitle={<>
+          TX_NEW · TX_CURR · TX_PVLS · Trimestre Fiscal PEPFAR
+          {report.data && <> · au {formatDateFr(report.data.period.end)}</>}
+        </>}
+        right={<>
           <select
             value={regionId ?? ""}
             onChange={(e) =>
@@ -117,9 +111,7 @@ export function Pepfar() {
           >
             <option value="">Toutes les régions</option>
             {regions.data?.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
+              <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
           <select
@@ -128,9 +120,7 @@ export function Pepfar() {
             className="rounded-md border border-slate-300 px-3 py-2 text-sm bg-white"
           >
             {fyOptions().map((y) => (
-              <option key={y} value={y}>
-                FY{y}
-              </option>
+              <option key={y} value={y}>FY{y}</option>
             ))}
           </select>
           <select
@@ -150,8 +140,7 @@ export function Pepfar() {
           >
             {exporting ? "Export…" : "Exporter CSV"}
           </button>
-        </div>
-      </div>
+        </>} />
 
       {/* KPI summary */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
@@ -222,7 +211,7 @@ function DisaggTable({ title, data }: { title: string; data: Disaggregated }) {
         <h3 className="text-sm font-medium">{title}</h3>
       </div>
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-ink-muted">
+        <thead className="thead-sigdep text-left">
           <tr>
             <th className="px-4 py-2 text-left font-medium">Tranche d’âge</th>
             {SEXES.map((s) => (
@@ -277,7 +266,7 @@ function PvlsTable({ pvls }: { pvls: TxPvls }) {
         </h3>
       </div>
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-ink-muted">
+        <thead className="thead-sigdep text-left">
           <tr>
             <th className="px-4 py-2 text-left font-medium">Tranche d’âge</th>
             {SEXES.map((s) => (

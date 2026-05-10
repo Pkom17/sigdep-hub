@@ -10,6 +10,8 @@ import {
   downloadBiologyCsv, fetchBiologyExams, fetchBiologySummary, fetchRegions,
 } from '../api/client';
 import { Kpi, formatInt, formatPercent } from '../components/Kpi';
+import { CardHeader } from '../components/CardHeader';
+import { PageHeader } from '../components/PageHeader';
 
 const PERIODS = [
   { months: 12, label: '12 derniers mois' },
@@ -79,14 +81,10 @@ export function Biologie() {
 
   return (
     <div className="px-6 py-6">
-      <div className="flex items-baseline justify-between mb-4 gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Biologie</h1>
-          <p className="text-sm text-ink-muted">
-            Examens biologiques &middot; charge virale &amp; CD4
-          </p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
+      <PageHeader
+        title="Biologie"
+        subtitle="Examens biologiques · charge virale & CD4"
+        right={<>
           <select
             value={regionId ?? ''}
             onChange={e => { setRegionId(e.target.value ? Number(e.target.value) : undefined); setPage(0); }}
@@ -104,8 +102,7 @@ export function Biologie() {
               <option key={p.months} value={p.months}>{p.label}</option>
             ))}
           </select>
-        </div>
-      </div>
+        </>} />
 
       {/* KPIs */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
@@ -129,11 +126,9 @@ export function Biologie() {
 
       {/* Two-column charts */}
       <div className="grid gap-3 lg:grid-cols-2 mb-6">
-        <div className="card p-4">
-          <h3 className="text-sm font-medium mb-4">
-            Suppression virale par mois &middot; % &lt; 1000 copies/mL
-          </h3>
-          <div className="h-56">
+        <div className="card">
+          <CardHeader title="Suppression virale par mois · % < 1000 copies/mL" />
+          <div className="h-56 p-4">
             {summary.isLoading ? (
               <div className="h-full flex items-center justify-center text-ink-muted text-sm">Chargement…</div>
             ) : (
@@ -159,16 +154,13 @@ export function Biologie() {
           </div>
         </div>
 
-        <div className="card p-4">
-          <h3 className="text-sm font-medium mb-1">
-            Distribution CD4 (cellules/µL)
-          </h3>
-          <p className="text-xs text-ink-muted mb-3">
-            {cd4 && cd4.total > 0
+        <div className="card">
+          <CardHeader
+            title="Distribution CD4 (cellules/µL)"
+            subtitle={cd4 && cd4.total > 0
               ? `${formatInt(cd4.total)} examens sur la période`
-              : 'Aucun examen CD4 sur la période'}
-          </p>
-          <div className="h-48">
+              : 'Aucun examen CD4 sur la période'} />
+          <div className="h-48 p-4">
             {cd4Bars.length === 0 ? (
               <div className="h-full flex items-center justify-center text-ink-muted text-sm">—</div>
             ) : (
@@ -188,7 +180,7 @@ export function Biologie() {
 
       {/* Exams table with tabs */}
       <div className="card overflow-hidden">
-        <div className="px-4 pt-3 flex items-center justify-between gap-2 flex-wrap border-b border-slate-200">
+        <div className="px-4 pt-3 flex items-center justify-between gap-2 flex-wrap bg-sigdep-50 border-b border-sigdep-100">
           <div className="flex gap-1">
             {TABS.map(t => (
               <button
@@ -217,7 +209,7 @@ export function Biologie() {
         </div>
 
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-ink-muted">
+          <thead className="thead-sigdep text-left">
             <tr className="text-left">
               <th className="px-4 py-2 font-medium">Date</th>
               <th className="px-4 py-2 font-medium">Patient</th>

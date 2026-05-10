@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { downloadPatientsCsv, fetchPatients } from '../api/client';
 import { formatInt } from '../components/Kpi';
+import { PageHeader } from '../components/PageHeader';
 
 function age(birthDate: string | null): string {
   if (!birthDate) return '—';
@@ -44,14 +45,10 @@ export function Patients() {
 
   return (
     <div className="px-6 py-6">
-      <div className="flex items-baseline justify-between mb-4 gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Patients</h1>
-          <p className="text-sm text-ink-muted">
-            {data ? `${formatInt(data.total)} patients` : 'Chargement…'}
-          </p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
+      <PageHeader
+        title="Patients"
+        subtitle={data ? `${formatInt(data.total)} patients` : 'Chargement…'}
+        right={<>
           <input
             type="search"
             value={query}
@@ -66,13 +63,12 @@ export function Patients() {
             className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50">
             {exporting ? 'Export…' : 'Exporter CSV'}
           </button>
-        </div>
-      </div>
+        </>} />
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-ink-muted">
+            <thead className="thead-sigdep text-left">
               <tr className="text-left">
                 <th className="px-4 py-2 font-medium">Identifiant</th>
                 <th className="px-4 py-2 font-medium">UPID</th>

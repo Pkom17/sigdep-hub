@@ -8,6 +8,7 @@ import {
   downloadTptCsv, fetchRegions, fetchTptRecords, fetchTptSummary,
 } from '../api/client';
 import { Kpi, formatInt, formatPercent } from '../components/Kpi';
+import { PageHeader } from '../components/PageHeader';
 
 const PERIODS = [
   { months: 12, label: '12 derniers mois' },
@@ -50,14 +51,10 @@ export function Tpt() {
 
   return (
     <div className="px-6 py-6">
-      <div className="flex items-baseline justify-between mb-4 gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">TPT</h1>
-          <p className="text-sm text-ink-muted">
-            Thérapie préventive de la tuberculose
-          </p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
+      <PageHeader
+        title="TPT"
+        subtitle="Thérapie préventive de la tuberculose"
+        right={<>
           <select
             value={regionId ?? ''}
             onChange={e => { setRegionId(e.target.value ? Number(e.target.value) : undefined); setPage(0); }}
@@ -81,8 +78,7 @@ export function Tpt() {
             className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50">
             {exporting ? 'Export…' : 'Exporter CSV'}
           </button>
-        </div>
-      </div>
+        </>} />
 
       {/* KPIs */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
@@ -140,14 +136,14 @@ export function Tpt() {
 
       {/* Records table */}
       <div className="card overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-          <h3 className="text-sm font-medium">Enregistrements TPT</h3>
+        <div className="px-4 py-3 bg-sigdep-50 border-b border-sigdep-100 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-sigdep-800">Enregistrements TPT</h3>
           <span className="text-xs text-ink-muted">
             {records.data ? `${formatInt(records.data.total)} enregistrements` : '—'}
           </span>
         </div>
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-ink-muted">
+          <thead className="thead-sigdep text-left">
             <tr className="text-left">
               <th className="px-4 py-2 font-medium">Date</th>
               <th className="px-4 py-2 font-medium">Patient</th>

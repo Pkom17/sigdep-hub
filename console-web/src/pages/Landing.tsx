@@ -34,6 +34,7 @@ export function Landing() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-3">
+            <img src="/logos/sigdep3_crop.png" alt="" className="h-10 w-10" />
             <img
               src="/logos/sigdep_logo_text_small.png"
               alt="SIGDEP-3"

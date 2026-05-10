@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { DateBlock, fetchPatient, fetchPatientEncounters } from '../api/client';
+import { PageHeader } from '../components/PageHeader';
 
 const KIND_META: Record<string, { label: string; color: string }> = {
   visit:      { label: 'Visite',         color: 'bg-sky-100 text-sky-700' },
@@ -51,12 +52,9 @@ export function PatientDetail() {
         </Link>
       </div>
 
-      <h1 className="text-2xl font-semibold tracking-tight">
-        {p.identifiers[0] ?? p.sourceUuid.slice(0, 8)}
-      </h1>
-      <p className="text-sm text-ink-muted mb-6">
-        {p.siteName} ({p.siteCode})
-      </p>
+      <PageHeader
+        title={p.identifiers[0] ?? p.sourceUuid.slice(0, 8)}
+        subtitle={`${p.siteName} (${p.siteCode})`} />
 
       {/* Identity card */}
       <div className="card p-4 mb-6">

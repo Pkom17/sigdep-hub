@@ -4,6 +4,7 @@ import {
 } from 'recharts';
 import { fetchDashboardKpis } from '../api/client';
 import { Kpi, formatInt, formatPercent } from '../components/Kpi';
+import { PageHeader } from '../components/PageHeader';
 
 function formatTime(iso: string | null): string {
   if (!iso) return '—';
@@ -39,15 +40,9 @@ export function Dashboard() {
 
   return (
     <div className="px-6 py-6">
-      {/* Title */}
-      <div className="flex items-baseline justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Vue d’ensemble</h1>
-          <p className="text-sm text-ink-muted">
-            Périmètre : National &middot; {periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1)}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Vue d’ensemble"
+        subtitle={`Périmètre : National · ${periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1)}`} />
 
       {/* KPI row */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">

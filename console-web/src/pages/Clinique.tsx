@@ -16,6 +16,7 @@ import {
   fetchRegions,
 } from "../api/client";
 import { Kpi, formatInt, formatPercent } from "../components/Kpi";
+import { PageHeader } from "../components/PageHeader";
 
 const PERIODS = [
   { months: 12, label: "12 derniers mois" },
@@ -73,16 +74,10 @@ export function Clinique() {
 
   return (
     <div className="px-6 py-6">
-      <div className="flex items-baseline justify-between mb-4 gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Suivi clinique
-          </h1>
-          <p className="text-sm text-ink-muted">
-            Visites de suivi PEC &middot; stades OMS, dépistage TB, régimes ARV
-          </p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
+      <PageHeader
+        title="Suivi clinique"
+        subtitle="Visites de suivi PEC · stades OMS, dépistage TB, régimes ARV"
+        right={<>
           <select
             value={regionId ?? ""}
             onChange={(e) => {
@@ -93,9 +88,7 @@ export function Clinique() {
           >
             <option value="">Toutes les régions</option>
             {regions.data?.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
+              <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
           <select
@@ -107,9 +100,7 @@ export function Clinique() {
             className="rounded-md border border-slate-300 px-3 py-2 text-sm bg-white"
           >
             {PERIODS.map((p) => (
-              <option key={p.months} value={p.months}>
-                {p.label}
-              </option>
+              <option key={p.months} value={p.months}>{p.label}</option>
             ))}
           </select>
           <button
@@ -119,8 +110,7 @@ export function Clinique() {
           >
             {exporting ? "Export…" : "Exporter CSV"}
           </button>
-        </div>
-      </div>
+        </>} />
 
       {/* KPIs */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
@@ -216,15 +206,15 @@ export function Clinique() {
 
       {/* Visits table */}
       <div className="card overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-          <h3 className="text-sm font-medium">Visites</h3>
+        <div className="px-4 py-3 bg-sigdep-50 border-b border-sigdep-100 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-sigdep-800">Visites</h3>
           <span className="text-xs text-ink-muted">
             {visits.data ? `${formatInt(visits.data.total)} visites` : "—"}
           </span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-ink-muted">
+            <thead className="thead-sigdep text-left">
               <tr className="text-left">
                 <th className="px-4 py-2 font-medium">Date</th>
                 <th className="px-4 py-2 font-medium">Patient</th>

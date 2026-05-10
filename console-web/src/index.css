@@ -15,5 +15,17 @@ body {
 
 /* Reusable card style — same density as the Bootstrap admin theme. */
 .card {
-  @apply bg-white rounded-lg shadow-card border border-slate-200/60;
+  @apply bg-white rounded-lg shadow-card border border-slate-200/60 overflow-hidden;
+}
+
+/* Card header: bold + brand-tinted background. Use it as the first child
+ * of a .card to get a visually-emphasized title bar. */
+.card-header {
+  @apply px-4 py-3 bg-sigdep-50 border-b border-sigdep-100 text-sigdep-800 font-semibold text-sm;
+}
+
+/* Table header: same brand tint as cards, bold, slightly tighter. Used on
+ * <thead> so listings get a uniform visual identity. */
+.thead-sigdep > tr > th {
+  @apply bg-sigdep-50 text-sigdep-800 font-semibold;
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchRegions, fetchSites, SiteStatus } from '../api/client';
 import { formatInt } from '../components/Kpi';
+import { PageHeader } from '../components/PageHeader';
 
 const STATUS_TABS: { value: SiteStatus; label: string }[] = [
   { value: 'all',     label: 'Tous' },
@@ -57,14 +58,10 @@ export function Sites() {
 
   return (
     <div className="px-6 py-6">
-      <div className="flex items-baseline justify-between mb-4 gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Sites</h1>
-          <p className="text-sm text-ink-muted">
-            {sites.data ? `${formatInt(sites.data.total)} sites` : 'Chargement…'}
-          </p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
+      <PageHeader
+        title="Sites"
+        subtitle={sites.data ? `${formatInt(sites.data.total)} sites` : 'Chargement…'}
+        right={<>
           <select
             value={regionId ?? ''}
             onChange={e => { setRegionId(e.target.value ? Number(e.target.value) : undefined); setPage(0); }}
@@ -82,8 +79,7 @@ export function Sites() {
             className="w-72 rounded-md border border-slate-300 px-3 py-2 text-sm
                        focus:outline-none focus:border-sigdep-500 focus:ring-1 focus:ring-sigdep-500"
           />
-        </div>
-      </div>
+        </>} />
 
       {/* Status tabs */}
       <div className="flex gap-1 mb-4 border-b border-slate-200">
@@ -103,7 +99,7 @@ export function Sites() {
 
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-ink-muted">
+          <thead className="thead-sigdep text-left">
             <tr className="text-left">
               <th className="px-4 py-2 font-medium">Code</th>
               <th className="px-4 py-2 font-medium">Nom</th>

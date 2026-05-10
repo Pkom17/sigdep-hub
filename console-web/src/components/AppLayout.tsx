@@ -58,6 +58,7 @@ export function AppLayout() {
       {/* Sidebar */}
       <aside className="w-60 shrink-0 border-r border-slate-200 bg-white flex flex-col">
         <div className="px-4 py-4 border-b border-slate-200 flex items-center gap-2">
+          <img src="/logos/sigdep3_crop.png" alt="" className="h-8 w-8" />
           <img
             src="/logos/sigdep_logo_text_small.png"
             alt="SIGDEP-3"

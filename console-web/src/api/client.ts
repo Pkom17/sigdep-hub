@@ -478,3 +478,77 @@ export async function downloadClinicCsv(months: number, regionId?: number): Prom
   const url = `/api/v1/clinic/visits.csv?${params}`;
   await downloadCsv(url, `clinique-${months}m.csv`);
 }
+
+// --- Pharmacy / ARV --------------------------------------------------------
+
+export type RegimenBucket = { label: string; count: number; patients: number };
+
+export type DurationBuckets = {
+  d1_7: number;
+  d8_30: number;
+  d31_90: number;
+  d90p: number;
+  unknown: number;
+  total: number;
+};
+
+export type PharmacySummary = {
+  dispensationsAllTime: number;
+  dispensationsInPeriod: number;
+  patientsOnArvInPeriod: number;
+  distinctRegimensInPeriod: number;
+  shortDispensationPct: number | null;
+  monthly: MonthlyCount[];
+  regimens: RegimenBucket[];
+  durations: DurationBuckets;
+  periodMonths: number;
+};
+
+export type DispensationRow = {
+  id: number;
+  visitDate: string | null;
+  nextVisitDate: string | null;
+  arvRegimen: string | null;
+  arvDays: number | null;
+  cotrimDays: number | null;
+  patientId: number;
+  patientCode: string | null;
+  siteCode: string;
+  siteName: string;
+};
+
+export type DispensationPage = {
+  content: DispensationRow[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export function fetchPharmacySummary(months: number, regionId?: number) {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  if (regionId) params.set('regionId', String(regionId));
+  return get<PharmacySummary>(`/api/v1/pharmacy/summary?${params}`);
+}
+
+export function fetchPharmacyDispensations(opts: {
+  months: number;
+  regionId?: number;
+  page?: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  params.set('months', String(opts.months));
+  if (opts.regionId) params.set('regionId', String(opts.regionId));
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<DispensationPage>(`/api/v1/pharmacy/dispensations?${params}`);
+}
+
+export async function downloadPharmacyCsv(months: number, regionId?: number): Promise<void> {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  if (regionId) params.set('regionId', String(regionId));
+  const url = `/api/v1/pharmacy/dispensations.csv?${params}`;
+  await downloadCsv(url, `pharmacie-${months}m.csv`);
+}
