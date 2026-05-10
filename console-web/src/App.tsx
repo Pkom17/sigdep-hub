@@ -12,6 +12,8 @@ import { Tpt } from "./pages/Tpt";
 import { Clinique } from "./pages/Clinique";
 import { Pharmacie } from "./pages/Pharmacie";
 import { Stub } from "./pages/Stub";
+import { Synchronisation } from "./pages/Synchronisation";
+import { Utilisateurs } from "./pages/Utilisateurs";
 
 export function App() {
   return (
@@ -41,8 +43,8 @@ export function App() {
         <Route path="ptme" element={<Stub title="PTME" />} />
         <Route path="tpt" element={<Tpt />} />
         <Route path="biologie" element={<Biologie />} />
-        <Route path="sync" element={<Stub title="Synchronisation" />} />
-        <Route path="users" element={<Stub title="Utilisateurs" />} />
+        <Route path="sync" element={<Synchronisation />} />
+        <Route path="users" element={<Utilisateurs />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -557,6 +557,220 @@ export async function downloadClinicCsv(months: number, scope: GeoScopeQ): Promi
   await downloadCsv(url, `clinique-${months}m.csv`);
 }
 
+// --- Users (Keycloak admin) ------------------------------------------------
+
+async function send<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T | null> {
+  const headers: Record<string, string> = {};
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const r = await fetch(path, {
+    method, headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!r.ok) {
+    let detail = '';
+    try { detail = await r.text(); } catch { /* ignore */ }
+    throw new Error(`${r.status} ${r.statusText}${detail ? ` — ${detail}` : ''}`);
+  }
+  if (r.status === 204) return null;
+  const text = await r.text();
+  return text ? JSON.parse(text) as T : null;
+}
+
+export type UserRow = {
+  id: string;
+  username: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  enabled: boolean;
+  emailVerified: boolean;
+  createdAt: number | null;
+};
+
+export type UserPage = {
+  content: UserRow[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export type UserDetail = UserRow & { realmRoles: string[] };
+
+export type CreateUserRequest = {
+  username: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  enabled?: boolean;
+  emailVerified?: boolean;
+  password?: string;
+  passwordTemporary?: boolean;
+  realmRoles?: string[];
+};
+
+export type UpdateUserRequest = {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  enabled?: boolean;
+  emailVerified?: boolean;
+  realmRoles?: string[];
+};
+
+export function fetchUsers(opts: { q?: string; page?: number; size?: number }) {
+  const params = new URLSearchParams();
+  if (opts.q) params.set('q', opts.q);
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<UserPage>(`/api/v1/users?${params}`);
+}
+
+export function fetchUserRoles() {
+  return get<string[]>('/api/v1/users/roles');
+}
+
+export function fetchUser(id: string) {
+  return get<UserDetail>(`/api/v1/users/${id}`);
+}
+
+export function createUser(req: CreateUserRequest) {
+  return send<{ id: string }>('POST', '/api/v1/users', req);
+}
+
+export function updateUser(id: string, req: UpdateUserRequest) {
+  return send<void>('PUT', `/api/v1/users/${id}`, req);
+}
+
+export function resetUserPassword(id: string, password: string, temporary: boolean) {
+  return send<void>('POST', `/api/v1/users/${id}/password`, { password, temporary });
+}
+
+export function setUserEnabled(id: string, enabled: boolean) {
+  return send<void>('POST', `/api/v1/users/${id}/${enabled ? 'enable' : 'disable'}`);
+}
+
+// --- Synchronisation -------------------------------------------------------
+
+export type SyncSummary = {
+  sitesTotal: number;
+  sitesOnline: number;
+  sitesLate: number;
+  sitesOffline: number;
+  lastBatchAt: string | null;
+  batches24h: number;
+  received24h: number;
+  accepted24h: number;
+  rejected24h: number;
+};
+
+export type DailyVolume = {
+  day: string;
+  batches: number;
+  received: number;
+  accepted: number;
+  rejected: number;
+};
+
+export type BatchRow = {
+  id: number;
+  batchId: string | null;
+  entityType: string;
+  receivedCount: number;
+  accepted: number;
+  rejected: number;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number | null;
+  status: string;
+  errorSample: string | null; // JSON string [{label, count}, …] or null
+  siteCode: string | null;
+  siteResolvedCode: string | null;
+  siteName: string | null;
+};
+
+export type BatchPage = {
+  content: BatchRow[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export type LateSiteRow = {
+  id: number;
+  code: string;
+  name: string;
+  regionName: string;
+  districtName: string;
+  lastSyncAt: string | null;
+  patientCount: number;
+};
+
+export type LateSitePage = {
+  content: LateSiteRow[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export type LateBucket = 'late' | 'offline' | 'never' | 'all';
+
+export function fetchSyncSummary(scope: GeoScopeQ) {
+  const params = new URLSearchParams();
+  appendScope(params, scope);
+  return get<SyncSummary>(`/api/v1/sync/summary?${params}`);
+}
+
+export function fetchSyncDaily(days: number, scope: GeoScopeQ) {
+  const params = new URLSearchParams();
+  params.set('days', String(days));
+  appendScope(params, scope);
+  return get<DailyVolume[]>(`/api/v1/sync/daily?${params}`);
+}
+
+export function fetchSyncBatches(opts: {
+  regionId?: number;
+  districtId?: number;
+  siteId?: number;
+  entityType?: string;
+  status?: string;
+  sort?: SortQ;
+  page?: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  if (opts.regionId)   params.set('regionId',   String(opts.regionId));
+  if (opts.districtId) params.set('districtId', String(opts.districtId));
+  if (opts.siteId)     params.set('siteId',     String(opts.siteId));
+  if (opts.entityType) params.set('entityType', opts.entityType);
+  if (opts.status)     params.set('status',     opts.status);
+  appendSort(params, opts.sort ?? null);
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<BatchPage>(`/api/v1/sync/batches?${params}`);
+}
+
+export function fetchSyncLateSites(opts: {
+  bucket: LateBucket;
+  regionId?: number;
+  districtId?: number;
+  siteId?: number;
+  sort?: SortQ;
+  page?: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  if (opts.bucket && opts.bucket !== 'all') params.set('bucket', opts.bucket);
+  if (opts.regionId)   params.set('regionId',   String(opts.regionId));
+  if (opts.districtId) params.set('districtId', String(opts.districtId));
+  if (opts.siteId)     params.set('siteId',     String(opts.siteId));
+  appendSort(params, opts.sort ?? null);
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<LateSitePage>(`/api/v1/sync/late-sites?${params}`);
+}
+
 // --- Pharmacy / ARV --------------------------------------------------------
 
 export type RegimenBucket = { label: string; count: number; patients: number };

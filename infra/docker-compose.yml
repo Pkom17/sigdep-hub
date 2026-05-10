@@ -14,7 +14,11 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:25.0
     container_name: sigdep-keycloak
-    command: start-dev
+    # --import-realm bootstraps the realm from /opt/keycloak/data/import on
+    # first start. On subsequent starts, if the realm already exists Keycloak
+    # leaves it alone — use kcadm.sh for incremental tweaks, or
+    # `docker-compose down -v` then up to re-bootstrap from the JSON.
+    command: start-dev --import-realm
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
