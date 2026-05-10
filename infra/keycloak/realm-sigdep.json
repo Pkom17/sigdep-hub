@@ -82,6 +82,18 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
       "clientAuthenticatorType": "client-secret"
+    },
+    {
+      "clientId": "sigdep-console-admin",
+      "name": "SIGDEP Console — Keycloak admin (service account)",
+      "description": "Service account used by console-api to manage users in the realm. Bound to realm-management roles via service-account-sigdep-console-admin user.",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "console-admin-dev-secret-change-me",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "clientAuthenticatorType": "client-secret"
     }
   ],
 
@@ -121,6 +133,20 @@
         { "type": "password", "value": "sigdep", "temporary": false }
       ],
       "realmRoles": ["SITE_USER"]
+    },
+    {
+      "username": "service-account-sigdep-console-admin",
+      "enabled": true,
+      "serviceAccountClientId": "sigdep-console-admin",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users",
+          "query-groups",
+          "view-realm"
+        ]
+      }
     }
   ]
 }

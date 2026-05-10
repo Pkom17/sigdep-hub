@@ -18,6 +18,13 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/sigdep}
+
+app:
+  keycloak:
+    server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8180}
+    realm: ${KEYCLOAK_REALM:sigdep}
+    admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:sigdep-console-admin}
+    admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:console-admin-dev-secret-change-me}
   web:
     resources:
       static-locations: classpath:/static/

@@ -68,6 +68,13 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>
 
+        <!-- Keycloak admin client for the console "Utilisateurs" page. -->
+        <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-admin-client</artifactId>
+            <version>25.0.6</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
