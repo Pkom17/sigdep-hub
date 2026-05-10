@@ -28,27 +28,35 @@ public class ClinicController {
     @GetMapping("/summary")
     public ClinicSummary summary(
             @RequestParam(defaultValue = "12") int months,
-            @RequestParam(required = false) Long regionId) {
-        return service.summary(Math.max(1, Math.min(120, months)), regionId);
+            @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long siteId) {
+        return service.summary(Math.max(1, Math.min(120, months)),
+                regionId, districtId, siteId);
     }
 
     @GetMapping("/visits")
     public VisitPage visits(
             @RequestParam(defaultValue = "12") int months,
             @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long siteId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return service.visits(Math.max(1, Math.min(120, months)), regionId, page, size);
+        return service.visits(Math.max(1, Math.min(120, months)),
+                regionId, districtId, siteId, page, size);
     }
 
     @GetMapping(value = "/visits.csv", produces = "text/csv;charset=UTF-8")
     public void visitsCsv(
             @RequestParam(defaultValue = "12") int months,
             @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long siteId,
             HttpServletResponse response) throws IOException {
 
         int safeMonths = Math.max(1, Math.min(120, months));
-        VisitPage page = service.visits(safeMonths, regionId, 0, 5000);
+        VisitPage page = service.visits(safeMonths, regionId, districtId, siteId, 0, 5000);
 
         String filename = "clinique-" + safeMonths + "m.csv";
         response.setContentType("text/csv;charset=UTF-8");

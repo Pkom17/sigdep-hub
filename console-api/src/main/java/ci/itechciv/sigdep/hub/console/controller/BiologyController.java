@@ -28,9 +28,11 @@ public class BiologyController {
     @GetMapping("/summary")
     public BiologySummary summary(
             @RequestParam(defaultValue = "12") int months,
-            @RequestParam(required = false) Long regionId) {
+            @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long siteId) {
         int safe = Math.max(1, Math.min(60, months));
-        return service.summary(safe, regionId);
+        return service.summary(safe, regionId, districtId, siteId);
     }
 
     @GetMapping("/exams")
@@ -38,9 +40,12 @@ public class BiologyController {
             @RequestParam(required = false) String test,
             @RequestParam(defaultValue = "12") int months,
             @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long siteId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return service.exams(test, Math.max(1, Math.min(60, months)), regionId, page, size);
+        return service.exams(test, Math.max(1, Math.min(60, months)),
+                regionId, districtId, siteId, page, size);
     }
 
     /** CSV export. Caps at 5,000 rows to keep memory bounded. */
@@ -49,10 +54,13 @@ public class BiologyController {
             @RequestParam(required = false) String test,
             @RequestParam(defaultValue = "12") int months,
             @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long siteId,
             HttpServletResponse response) throws IOException {
 
         int safeMonths = Math.max(1, Math.min(60, months));
-        ExamPage page = service.exams(test, safeMonths, regionId, 0, 5000);
+        ExamPage page = service.exams(test, safeMonths,
+                regionId, districtId, siteId, 0, 5000);
 
         String filename = "biology-" + (test == null ? "all" : test) + "-" + safeMonths + "m.csv";
         response.setContentType("text/csv;charset=UTF-8");

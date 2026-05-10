@@ -29,45 +29,60 @@ public class ClinicService {
         this.jdbc = jdbc;
     }
 
-    private static String regionJoin(Long regionId) {
-        return regionId == null ? ""
-                : " JOIN core.sites s ON s.id = v.site_id"
-                + " JOIN core.districts d ON d.id = s.district_id AND d.region_id = ?";
+    private static String geoFilter(Long regionId, Long districtId, Long siteId) {
+        if (siteId != null) {
+            return " JOIN core.sites s ON s.id = v.site_id AND s.id = ?";
+        }
+        if (districtId != null) {
+            return " JOIN core.sites s ON s.id = v.site_id AND s.district_id = ?";
+        }
+        if (regionId != null) {
+            return " JOIN core.sites s ON s.id = v.site_id"
+                 + " JOIN core.districts d ON d.id = s.district_id AND d.region_id = ?";
+        }
+        return "";
     }
 
-    private static Object[] buildArgs(Long regionId, Object... rest) {
-        if (regionId == null) return rest;
+    private static Long geoArg(Long regionId, Long districtId, Long siteId) {
+        if (siteId != null)     return siteId;
+        if (districtId != null) return districtId;
+        return regionId;
+    }
+
+    private static Object[] geoArgs(Long regionId, Long districtId, Long siteId, Object... rest) {
+        Long g = geoArg(regionId, districtId, siteId);
+        if (g == null) return rest;
         Object[] out = new Object[rest.length + 1];
-        out[0] = regionId;
+        out[0] = g;
         System.arraycopy(rest, 0, out, 1, rest.length);
         return out;
     }
 
-    public ClinicSummary summary(int months, Long regionId) {
+    public ClinicSummary summary(int months, Long regionId, Long districtId, Long siteId) {
         LocalDate since = LocalDate.now().minusMonths(months);
-        String region = regionJoin(regionId);
+        String region = geoFilter(regionId, districtId, siteId);
 
         Long visitsTotal = jdbc.queryForObject(
                 "SELECT count(*) FROM core.visits v" + region
                         + " WHERE v.voided = FALSE",
-                Long.class, buildArgs(regionId));
+                Long.class, geoArgs(regionId, districtId, siteId));
 
         Long visitsInPeriod = jdbc.queryForObject(
                 "SELECT count(*) FROM core.visits v" + region
                         + " WHERE v.voided = FALSE AND v.visit_date >= ?",
-                Long.class, buildArgs(regionId, since));
+                Long.class, geoArgs(regionId, districtId, siteId, since));
 
         Long withTbScreen = jdbc.queryForObject(
                 "SELECT count(*) FROM core.visits v" + region
                         + " WHERE v.voided = FALSE AND v.visit_date >= ?"
                         + "   AND v.extra_data ?? ?",
-                Long.class, buildArgs(regionId, since, TB_SCREEN_KEY));
+                Long.class, geoArgs(regionId, districtId, siteId, since, TB_SCREEN_KEY));
 
         Long withWhoStage = jdbc.queryForObject(
                 "SELECT count(*) FROM core.visits v" + region
                         + " WHERE v.voided = FALSE AND v.visit_date >= ?"
                         + "   AND v.extra_data ?? ?",
-                Long.class, buildArgs(regionId, since, WHO_STAGE_KEY));
+                Long.class, geoArgs(regionId, districtId, siteId, since, WHO_STAGE_KEY));
 
         BigDecimal tbScreenPct = pct(withTbScreen, visitsInPeriod);
         BigDecimal whoStagePct = pct(withWhoStage, visitsInPeriod);
@@ -80,7 +95,7 @@ public class ClinicService {
                         + "   AND v.extra_data ?? ?"
                         + " GROUP BY k ORDER BY n DESC",
                 (rs, i) -> new Bucket(rs.getString("k"), rs.getLong("n")),
-                buildArgs(regionId, WHO_STAGE_KEY, since, WHO_STAGE_KEY));
+                geoArgs(regionId, districtId, siteId, WHO_STAGE_KEY, since, WHO_STAGE_KEY));
 
         List<Bucket> tbScreenDist = jdbc.query(
                 "SELECT v.extra_data->>? AS k, count(*) AS n"
@@ -89,7 +104,7 @@ public class ClinicService {
                         + "   AND v.extra_data ?? ?"
                         + " GROUP BY k ORDER BY n DESC",
                 (rs, i) -> new Bucket(rs.getString("k"), rs.getLong("n")),
-                buildArgs(regionId, TB_SCREEN_KEY, since, TB_SCREEN_KEY));
+                geoArgs(regionId, districtId, siteId, TB_SCREEN_KEY, since, TB_SCREEN_KEY));
 
         List<Bucket> arvDist = jdbc.query(
                 "SELECT v.arv_regimen AS k, count(*) AS n FROM core.visits v" + region
@@ -97,7 +112,7 @@ public class ClinicService {
                         + "   AND v.arv_regimen IS NOT NULL"
                         + " GROUP BY k ORDER BY n DESC LIMIT 10",
                 (rs, i) -> new Bucket(rs.getString("k"), rs.getLong("n")),
-                buildArgs(regionId, since));
+                geoArgs(regionId, districtId, siteId, since));
 
         // Monthly visit count
         String monthlySql = "WITH months AS ("
@@ -113,9 +128,10 @@ public class ClinicService {
                 + "      AND v.visit_date <  m.month_start + INTERVAL '1 month') AS n"
                 + " FROM months m ORDER BY m.month_start";
 
+        Long g = geoArg(regionId, districtId, siteId);
         List<Object> mArgs = new ArrayList<>();
         mArgs.add(months);
-        if (regionId != null) mArgs.add(regionId);
+        if (g != null) mArgs.add(g);
 
         List<MonthlyCount> monthly = jdbc.query(monthlySql,
                 (rs, i) -> new MonthlyCount(rs.getString("label"), rs.getLong("n")),
@@ -141,22 +157,33 @@ public class ClinicService {
                 .divide(new BigDecimal(d), 1, RoundingMode.HALF_UP);
     }
 
-    public VisitPage visits(int months, Long regionId, int page, int size) {
+    public VisitPage visits(int months, Long regionId, Long districtId, Long siteId, int page, int size) {
         int safeSize = Math.max(1, Math.min(500, size));
         int safePage = Math.max(0, page);
         int offset = safePage * safeSize;
         LocalDate since = LocalDate.now().minusMonths(months);
 
-        String regionJoin = regionId == null ? "" :
-                " JOIN core.districts d ON d.id = site.district_id AND d.region_id = ?";
+        // We already JOIN core.sites for the site code/name; piggy-back the
+        // geo filter on that join when possible.
+        String geoJoin;
+        if (siteId != null) {
+            geoJoin = " AND site.id = ?";
+        } else if (districtId != null) {
+            geoJoin = " AND site.district_id = ?";
+        } else if (regionId != null) {
+            geoJoin = " JOIN core.districts d ON d.id = site.district_id AND d.region_id = ?";
+        } else {
+            geoJoin = "";
+        }
 
         List<Object> args = new ArrayList<>();
-        if (regionId != null) args.add(regionId);
+        Long g = geoArg(regionId, districtId, siteId);
+        if (g != null) args.add(g);
         args.add(since);
 
         Long total = jdbc.queryForObject(
                 "SELECT count(*) FROM core.visits v"
-                        + " JOIN core.sites site ON site.id = v.site_id" + regionJoin
+                        + " JOIN core.sites site ON site.id = v.site_id" + geoJoin
                         + " WHERE v.voided = FALSE AND v.visit_date >= ?",
                 Long.class, args.toArray());
 
@@ -178,7 +205,7 @@ public class ClinicService {
                         + "         WHERE pi.patient_id = v.patient_id"
                         + "         ORDER BY pi.id LIMIT 1) AS patient_code"
                         + " FROM core.visits v"
-                        + " JOIN core.sites site ON site.id = v.site_id" + regionJoin
+                        + " JOIN core.sites site ON site.id = v.site_id" + geoJoin
                         + " WHERE v.voided = FALSE AND v.visit_date >= ?"
                         + " ORDER BY v.visit_date DESC NULLS LAST, v.id DESC"
                         + " LIMIT ? OFFSET ?",

@@ -25,47 +25,62 @@ public class TptService {
         this.jdbc = jdbc;
     }
 
-    private static String regionFilter(Long regionId) {
-        return regionId == null ? ""
-                : " JOIN core.sites s ON s.id = t.site_id"
-                + " JOIN core.districts d ON d.id = s.district_id AND d.region_id = ?";
+    private static String geoFilter(Long regionId, Long districtId, Long siteId) {
+        if (siteId != null) {
+            return " JOIN core.sites s ON s.id = t.site_id AND s.id = ?";
+        }
+        if (districtId != null) {
+            return " JOIN core.sites s ON s.id = t.site_id AND s.district_id = ?";
+        }
+        if (regionId != null) {
+            return " JOIN core.sites s ON s.id = t.site_id"
+                 + " JOIN core.districts d ON d.id = s.district_id AND d.region_id = ?";
+        }
+        return "";
     }
 
-    private static Object[] buildArgs(Long regionId, Object... rest) {
-        if (regionId == null) return rest;
+    private static Long geoArg(Long regionId, Long districtId, Long siteId) {
+        if (siteId != null)     return siteId;
+        if (districtId != null) return districtId;
+        return regionId;
+    }
+
+    private static Object[] geoArgs(Long regionId, Long districtId, Long siteId, Object... rest) {
+        Long g = geoArg(regionId, districtId, siteId);
+        if (g == null) return rest;
         Object[] out = new Object[rest.length + 1];
-        out[0] = regionId;
+        out[0] = g;
         System.arraycopy(rest, 0, out, 1, rest.length);
         return out;
     }
 
-    public TptSummary summary(int months, Long regionId) {
+    public TptSummary summary(int months, Long regionId, Long districtId, Long siteId) {
         LocalDate since = LocalDate.now().minusMonths(months);
-        String region = regionFilter(regionId);
+        String region = geoFilter(regionId, districtId, siteId);
 
         // Cards
         Long total = jdbc.queryForObject(
                 "SELECT count(*) FROM core.tpt_records t" + region
                         + " WHERE t.voided = FALSE",
-                Long.class, buildArgs(regionId));
+                Long.class, geoArgs(regionId, districtId, siteId));
 
         Long inPeriod = jdbc.queryForObject(
                 "SELECT count(*) FROM core.tpt_records t" + region
                         + " WHERE t.voided = FALSE AND t.record_date >= ?",
-                Long.class, buildArgs(regionId, since));
+                Long.class, geoArgs(regionId, districtId, siteId, since));
 
         Long completed = jdbc.queryForObject(
                 "SELECT count(*) FROM core.tpt_records t" + region
                         + " WHERE t.voided = FALSE AND t.tpt_outcome IS NOT NULL"
                         + "   AND t.record_date >= ?",
-                Long.class, buildArgs(regionId, since));
+                Long.class, geoArgs(regionId, districtId, siteId, since));
 
         Long ongoing = jdbc.queryForObject(
                 "SELECT count(*) FROM core.tpt_records t" + region
                         + " WHERE t.voided = FALSE"
                         + "   AND (t.tpt_outcome IS NULL OR t.tpt_end_date IS NULL"
                         + "        OR t.tpt_end_date > CURRENT_DATE)",
-                Long.class, buildArgs(regionId));
+                Long.class, geoArgs(regionId, districtId, siteId));
 
         BigDecimal completionPct = inPeriod == null || inPeriod == 0 ? null
                 : new BigDecimal(completed == null ? 0L : completed)
@@ -79,7 +94,7 @@ public class TptService {
                         + " WHERE t.voided = FALSE AND t.record_date >= ?"
                         + " GROUP BY yr ORDER BY yr",
                 (rs, i) -> new YearBucket(rs.getInt("yr"), rs.getLong("n")),
-                buildArgs(regionId, since));
+                geoArgs(regionId, districtId, siteId, since));
 
         // Outcome distribution
         List<Bucket> outcomes = jdbc.query(
@@ -88,7 +103,7 @@ public class TptService {
                         + " WHERE t.voided = FALSE AND t.record_date >= ?"
                         + " GROUP BY k ORDER BY n DESC",
                 (rs, i) -> new Bucket(rs.getString("k"), rs.getLong("n")),
-                buildArgs(regionId, since));
+                geoArgs(regionId, districtId, siteId, since));
 
         // Adherence distribution
         List<Bucket> adherence = jdbc.query(
@@ -97,7 +112,7 @@ public class TptService {
                         + " WHERE t.voided = FALSE AND t.record_date >= ?"
                         + " GROUP BY k ORDER BY n DESC",
                 (rs, i) -> new Bucket(rs.getString("k"), rs.getLong("n")),
-                buildArgs(regionId, since));
+                geoArgs(regionId, districtId, siteId, since));
 
         // Status distribution (Début / En cours / Fin / Pas de TPT)
         List<Bucket> statuses = jdbc.query(
@@ -106,7 +121,7 @@ public class TptService {
                         + " WHERE t.voided = FALSE AND t.record_date >= ?"
                         + " GROUP BY k ORDER BY n DESC",
                 (rs, i) -> new Bucket(rs.getString("k"), rs.getLong("n")),
-                buildArgs(regionId, since));
+                geoArgs(regionId, districtId, siteId, since));
 
         // Regimen distribution (3HP / 6H / INH / …)
         List<Bucket> regimens = jdbc.query(
@@ -115,7 +130,7 @@ public class TptService {
                         + " WHERE t.voided = FALSE AND t.record_date >= ?"
                         + " GROUP BY k ORDER BY n DESC",
                 (rs, i) -> new Bucket(rs.getString("k"), rs.getLong("n")),
-                buildArgs(regionId, since));
+                geoArgs(regionId, districtId, siteId, since));
 
         return new TptSummary(
                 total == null ? 0L : total,
@@ -131,22 +146,33 @@ public class TptService {
                 months);
     }
 
-    public RecordPage records(int months, Long regionId, int page, int size) {
+    public RecordPage records(int months, Long regionId, Long districtId, Long siteId, int page, int size) {
         int safeSize = Math.max(1, Math.min(500, size));
         int safePage = Math.max(0, page);
         int offset = safePage * safeSize;
         LocalDate since = LocalDate.now().minusMonths(months);
 
-        String regionJoin = regionId == null ? "" :
-                " JOIN core.districts d ON d.id = site.district_id AND d.region_id = ?";
+        // The query already joins core.sites for code/name; tack the geo
+        // filter on that join.
+        String geoJoin;
+        if (siteId != null) {
+            geoJoin = " AND site.id = ?";
+        } else if (districtId != null) {
+            geoJoin = " AND site.district_id = ?";
+        } else if (regionId != null) {
+            geoJoin = " JOIN core.districts d ON d.id = site.district_id AND d.region_id = ?";
+        } else {
+            geoJoin = "";
+        }
 
         List<Object> args = new ArrayList<>();
-        if (regionId != null) args.add(regionId);
+        Long g = geoArg(regionId, districtId, siteId);
+        if (g != null) args.add(g);
         args.add(since);
 
         Long total = jdbc.queryForObject(
                 "SELECT count(*) FROM core.tpt_records t"
-                        + " JOIN core.sites site ON site.id = t.site_id" + regionJoin
+                        + " JOIN core.sites site ON site.id = t.site_id" + geoJoin
                         + " WHERE t.voided = FALSE AND t.record_date >= ?",
                 Long.class, args.toArray());
 
@@ -164,7 +190,7 @@ public class TptService {
                         + "         WHERE pi.patient_id = t.patient_id"
                         + "         ORDER BY pi.id LIMIT 1) AS patient_code"
                         + " FROM core.tpt_records t"
-                        + " JOIN core.sites site ON site.id = t.site_id" + regionJoin
+                        + " JOIN core.sites site ON site.id = t.site_id" + geoJoin
                         + " WHERE t.voided = FALSE AND t.record_date >= ?"
                         + " ORDER BY t.record_date DESC NULLS LAST, t.id DESC"
                         + " LIMIT ? OFFSET ?",

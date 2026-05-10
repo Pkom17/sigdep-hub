@@ -20,7 +20,9 @@ public class SiteQueryService {
      * @param status one of "all" / "online" (<24h) / "late" (24h..7j) /
      *               "offline" (>7j or null). null/empty == all.
      */
-    public SitePage list(String search, String status, Long regionId, int page, int size) {
+    public SitePage list(String search, String status,
+                         Long regionId, Long districtId, Long siteId,
+                         int page, int size) {
         int safeSize = Math.max(1, Math.min(200, size));
         int safePage = Math.max(0, page);
         int offset = safePage * safeSize;
@@ -35,7 +37,14 @@ public class SiteQueryService {
             args.add(like);
         }
 
-        if (regionId != null) {
+        // Tightest filter wins.
+        if (siteId != null) {
+            where.append(" AND s.id = ?");
+            args.add(siteId);
+        } else if (districtId != null) {
+            where.append(" AND d.id = ?");
+            args.add(districtId);
+        } else if (regionId != null) {
             where.append(" AND r.id = ?");
             args.add(regionId);
         }
@@ -96,6 +105,51 @@ public class SiteQueryService {
                 (rs, i) -> new RegionRef(rs.getLong("id"), rs.getString("name")));
     }
 
+    /** Districts of a region. Used by the cascading region→district→site filter. */
+    public List<DistrictRef> districts(Long regionId) {
+        if (regionId == null) {
+            return jdbc.query(
+                    "SELECT id, region_id, name FROM core.districts ORDER BY name",
+                    (rs, i) -> new DistrictRef(
+                            rs.getLong("id"), rs.getLong("region_id"), rs.getString("name")));
+        }
+        return jdbc.query(
+                "SELECT id, region_id, name FROM core.districts"
+                        + " WHERE region_id = ? ORDER BY name",
+                (rs, i) -> new DistrictRef(
+                        rs.getLong("id"), rs.getLong("region_id"), rs.getString("name")),
+                regionId);
+    }
+
+    /** Sites for a district (or for a region if districtId is null). */
+    public List<SiteRef> sitesOf(Long regionId, Long districtId) {
+        if (districtId != null) {
+            return jdbc.query(
+                    "SELECT s.id, s.code, s.name, d.id AS district_id"
+                            + " FROM core.sites s"
+                            + " JOIN core.districts d ON d.id = s.district_id"
+                            + " WHERE d.id = ? ORDER BY s.code",
+                    (rs, i) -> new SiteRef(
+                            rs.getLong("id"), rs.getString("code"), rs.getString("name"),
+                            rs.getLong("district_id")),
+                    districtId);
+        }
+        if (regionId != null) {
+            return jdbc.query(
+                    "SELECT s.id, s.code, s.name, d.id AS district_id"
+                            + " FROM core.sites s"
+                            + " JOIN core.districts d ON d.id = s.district_id"
+                            + " WHERE d.region_id = ? ORDER BY s.code",
+                    (rs, i) -> new SiteRef(
+                            rs.getLong("id"), rs.getString("code"), rs.getString("name"),
+                            rs.getLong("district_id")),
+                    regionId);
+        }
+        // No region/district filter: don't return all 3,880 sites — caller
+        // is expected to scope by region first.
+        return List.of();
+    }
+
     public record SiteRow(
             long id,
             String code,
@@ -118,4 +172,8 @@ public class SiteQueryService {
     ) {}
 
     public record RegionRef(long id, String name) {}
+
+    public record DistrictRef(long id, long regionId, String name) {}
+
+    public record SiteRef(long id, String code, String name, long districtId) {}
 }

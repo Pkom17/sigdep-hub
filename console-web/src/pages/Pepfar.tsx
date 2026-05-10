@@ -5,10 +5,10 @@ import {
   TxPvls,
   downloadPepfarCsv,
   fetchPepfarReport,
-  fetchRegions,
 } from "../api/client";
 import { Kpi, formatInt, formatPercent } from "../components/Kpi";
 import { PageHeader } from "../components/PageHeader";
+import { GeoFilter, GeoScope } from "../components/GeoFilter";
 
 const AGE_BANDS = ["<15", "15-24", "25-49", "50+", "unknown"] as const;
 const SEXES: ReadonlyArray<{ key: "M" | "F"; label: string }> = [
@@ -72,19 +72,18 @@ export function Pepfar() {
   const def = currentDefaultQuarter();
   const [fy, setFy] = useState(def.fy);
   const [q, setQ] = useState(def.q);
-  const [regionId, setRegionId] = useState<number | undefined>(undefined);
+  const [scope, setScope] = useState<GeoScope>({});
   const [exporting, setExporting] = useState(false);
 
-  const regions = useQuery({ queryKey: ["regions"], queryFn: fetchRegions });
   const report = useQuery({
-    queryKey: ["pepfar", fy, q, regionId],
-    queryFn: () => fetchPepfarReport(fy, q, regionId),
+    queryKey: ["pepfar", fy, q, scope],
+    queryFn: () => fetchPepfarReport(fy, q, scope),
   });
 
   async function handleExport() {
     setExporting(true);
     try {
-      await downloadPepfarCsv(fy, q, regionId);
+      await downloadPepfarCsv(fy, q, scope);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(err);
@@ -102,18 +101,7 @@ export function Pepfar() {
           {report.data && <> · au {formatDateFr(report.data.period.end)}</>}
         </>}
         right={<>
-          <select
-            value={regionId ?? ""}
-            onChange={(e) =>
-              setRegionId(e.target.value ? Number(e.target.value) : undefined)
-            }
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm bg-white"
-          >
-            <option value="">Toutes les régions</option>
-            {regions.data?.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
+          <GeoFilter value={scope} onChange={setScope} />
           <select
             value={fy}
             onChange={(e) => setFy(Number(e.target.value))}

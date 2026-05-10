@@ -108,17 +108,35 @@ export type EncounterDay = {
   blocks: DateBlock[];
 };
 
-export function fetchPatients(q: string, page = 0, size = 25) {
+export function fetchPatients(opts: {
+  q?: string;
+  regionId?: number;
+  districtId?: number;
+  siteId?: number;
+  page?: number;
+  size?: number;
+}) {
   const params = new URLSearchParams();
-  if (q) params.set('q', q);
-  params.set('page', String(page));
-  params.set('size', String(size));
+  if (opts.q) params.set('q', opts.q);
+  if (opts.regionId) params.set('regionId', String(opts.regionId));
+  if (opts.districtId) params.set('districtId', String(opts.districtId));
+  if (opts.siteId) params.set('siteId', String(opts.siteId));
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 25));
   return get<PatientPage>(`/api/v1/patients?${params}`);
 }
 
-export async function downloadPatientsCsv(q: string): Promise<void> {
+export async function downloadPatientsCsv(opts: {
+  q?: string;
+  regionId?: number;
+  districtId?: number;
+  siteId?: number;
+}): Promise<void> {
   const params = new URLSearchParams();
-  if (q) params.set('q', q);
+  if (opts.q) params.set('q', opts.q);
+  if (opts.regionId) params.set('regionId', String(opts.regionId));
+  if (opts.districtId) params.set('districtId', String(opts.districtId));
+  if (opts.siteId) params.set('siteId', String(opts.siteId));
   const url = `/api/v1/patients/list.csv?${params}`;
   await downloadCsv(url, 'patients.csv');
 }
@@ -157,11 +175,29 @@ export type SitePage = {
 };
 
 export type RegionRef = { id: number; name: string };
+export type DistrictRef = { id: number; regionId: number; name: string };
+export type SiteShort = { id: number; code: string; name: string; districtId: number };
+
+/** Geo scope filter shared across pages. */
+export type GeoScopeQ = {
+  regionId?: number;
+  districtId?: number;
+  siteId?: number;
+};
+
+/** Append region/district/site IDs to a URLSearchParams when set. */
+export function appendScope(params: URLSearchParams, scope: GeoScopeQ): void {
+  if (scope.regionId)   params.set('regionId',   String(scope.regionId));
+  if (scope.districtId) params.set('districtId', String(scope.districtId));
+  if (scope.siteId)     params.set('siteId',     String(scope.siteId));
+}
 
 export function fetchSites(opts: {
   q?: string;
   status?: SiteStatus;
   regionId?: number;
+  districtId?: number;
+  siteId?: number;
   page?: number;
   size?: number;
 }) {
@@ -169,6 +205,8 @@ export function fetchSites(opts: {
   if (opts.q) params.set('q', opts.q);
   if (opts.status && opts.status !== 'all') params.set('status', opts.status);
   if (opts.regionId) params.set('regionId', String(opts.regionId));
+  if (opts.districtId) params.set('districtId', String(opts.districtId));
+  if (opts.siteId) params.set('siteId', String(opts.siteId));
   params.set('page', String(opts.page ?? 0));
   params.set('size', String(opts.size ?? 50));
   return get<SitePage>(`/api/v1/sites?${params}`);
@@ -176,6 +214,19 @@ export function fetchSites(opts: {
 
 export function fetchRegions() {
   return get<RegionRef[]>('/api/v1/sites/regions');
+}
+
+export function fetchDistricts(regionId?: number) {
+  const params = new URLSearchParams();
+  if (regionId) params.set('regionId', String(regionId));
+  return get<DistrictRef[]>(`/api/v1/sites/districts?${params}`);
+}
+
+export function fetchSitesOf(regionId?: number, districtId?: number) {
+  const params = new URLSearchParams();
+  if (regionId) params.set('regionId', String(regionId));
+  if (districtId) params.set('districtId', String(districtId));
+  return get<SiteShort[]>(`/api/v1/sites/list-of?${params}`);
 }
 
 // --- Biology ---------------------------------------------------------------
@@ -222,10 +273,10 @@ export type ExamRow = {
   patientCode: string | null;
 };
 
-export function fetchBiologySummary(months: number, regionId?: number) {
+export function fetchBiologySummary(months: number, scope: GeoScopeQ) {
   const params = new URLSearchParams();
   params.set('months', String(months));
-  if (regionId) params.set('regionId', String(regionId));
+  appendScope(params, scope);
   return get<BiologySummary>(`/api/v1/biology/summary?${params}`);
 }
 
@@ -242,13 +293,15 @@ export function fetchBiologyExams(opts: {
   test: ExamFilter;
   months: number;
   regionId?: number;
+  districtId?: number;
+  siteId?: number;
   page?: number;
   size?: number;
 }) {
   const params = new URLSearchParams();
   if (opts.test !== 'all') params.set('test', opts.test);
   params.set('months', String(opts.months));
-  if (opts.regionId) params.set('regionId', String(opts.regionId));
+  appendScope(params, opts);
   params.set('page', String(opts.page ?? 0));
   params.set('size', String(opts.size ?? 50));
   return get<ExamPage>(`/api/v1/biology/exams?${params}`);
@@ -263,11 +316,13 @@ export async function downloadBiologyCsv(opts: {
   test: ExamFilter;
   months: number;
   regionId?: number;
+  districtId?: number;
+  siteId?: number;
 }): Promise<void> {
   const params = new URLSearchParams();
   if (opts.test !== 'all') params.set('test', opts.test);
   params.set('months', String(opts.months));
-  if (opts.regionId) params.set('regionId', String(opts.regionId));
+  appendScope(params, opts);
   const url = `/api/v1/biology/exams.csv?${params}`;
   const filename = `biology-${opts.test}-${opts.months}m.csv`;
   await downloadCsv(url, filename);
@@ -311,19 +366,19 @@ export type PepfarReport = {
   txPvls: TxPvls;
 };
 
-export function fetchPepfarReport(fy: number, q: number, regionId?: number) {
+export function fetchPepfarReport(fy: number, q: number, scope: GeoScopeQ) {
   const params = new URLSearchParams();
   params.set('fy', String(fy));
   params.set('q', String(q));
-  if (regionId) params.set('regionId', String(regionId));
+  appendScope(params, scope);
   return get<PepfarReport>(`/api/v1/pepfar/report?${params}`);
 }
 
-export async function downloadPepfarCsv(fy: number, q: number, regionId?: number): Promise<void> {
+export async function downloadPepfarCsv(fy: number, q: number, scope: GeoScopeQ): Promise<void> {
   const params = new URLSearchParams();
   params.set('fy', String(fy));
   params.set('q', String(q));
-  if (regionId) params.set('regionId', String(regionId));
+  appendScope(params, scope);
   const url = `/api/v1/pepfar/report.csv?${params}`;
   const filename = `pepfar-FY${fy}Q${q}.csv`;
   await downloadCsv(url, filename);
@@ -373,31 +428,33 @@ export type TptRecordPage = {
   size: number;
 };
 
-export function fetchTptSummary(months: number, regionId?: number) {
+export function fetchTptSummary(months: number, scope: GeoScopeQ) {
   const params = new URLSearchParams();
   params.set('months', String(months));
-  if (regionId) params.set('regionId', String(regionId));
+  appendScope(params, scope);
   return get<TptSummary>(`/api/v1/tpt/summary?${params}`);
 }
 
 export function fetchTptRecords(opts: {
   months: number;
   regionId?: number;
+  districtId?: number;
+  siteId?: number;
   page?: number;
   size?: number;
 }) {
   const params = new URLSearchParams();
   params.set('months', String(opts.months));
-  if (opts.regionId) params.set('regionId', String(opts.regionId));
+  appendScope(params, opts);
   params.set('page', String(opts.page ?? 0));
   params.set('size', String(opts.size ?? 50));
   return get<TptRecordPage>(`/api/v1/tpt/records?${params}`);
 }
 
-export async function downloadTptCsv(months: number, regionId?: number): Promise<void> {
+export async function downloadTptCsv(months: number, scope: GeoScopeQ): Promise<void> {
   const params = new URLSearchParams();
   params.set('months', String(months));
-  if (regionId) params.set('regionId', String(regionId));
+  appendScope(params, scope);
   const url = `/api/v1/tpt/records.csv?${params}`;
   await downloadCsv(url, `tpt-${months}m.csv`);
 }
@@ -450,31 +507,33 @@ export type VisitPage = {
   size: number;
 };
 
-export function fetchClinicSummary(months: number, regionId?: number) {
+export function fetchClinicSummary(months: number, scope: GeoScopeQ) {
   const params = new URLSearchParams();
   params.set('months', String(months));
-  if (regionId) params.set('regionId', String(regionId));
+  appendScope(params, scope);
   return get<ClinicSummary>(`/api/v1/clinic/summary?${params}`);
 }
 
 export function fetchClinicVisits(opts: {
   months: number;
   regionId?: number;
+  districtId?: number;
+  siteId?: number;
   page?: number;
   size?: number;
 }) {
   const params = new URLSearchParams();
   params.set('months', String(opts.months));
-  if (opts.regionId) params.set('regionId', String(opts.regionId));
+  appendScope(params, opts);
   params.set('page', String(opts.page ?? 0));
   params.set('size', String(opts.size ?? 50));
   return get<VisitPage>(`/api/v1/clinic/visits?${params}`);
 }
 
-export async function downloadClinicCsv(months: number, regionId?: number): Promise<void> {
+export async function downloadClinicCsv(months: number, scope: GeoScopeQ): Promise<void> {
   const params = new URLSearchParams();
   params.set('months', String(months));
-  if (regionId) params.set('regionId', String(regionId));
+  appendScope(params, scope);
   const url = `/api/v1/clinic/visits.csv?${params}`;
   await downloadCsv(url, `clinique-${months}m.csv`);
 }
@@ -524,31 +583,33 @@ export type DispensationPage = {
   size: number;
 };
 
-export function fetchPharmacySummary(months: number, regionId?: number) {
+export function fetchPharmacySummary(months: number, scope: GeoScopeQ) {
   const params = new URLSearchParams();
   params.set('months', String(months));
-  if (regionId) params.set('regionId', String(regionId));
+  appendScope(params, scope);
   return get<PharmacySummary>(`/api/v1/pharmacy/summary?${params}`);
 }
 
 export function fetchPharmacyDispensations(opts: {
   months: number;
   regionId?: number;
+  districtId?: number;
+  siteId?: number;
   page?: number;
   size?: number;
 }) {
   const params = new URLSearchParams();
   params.set('months', String(opts.months));
-  if (opts.regionId) params.set('regionId', String(opts.regionId));
+  appendScope(params, opts);
   params.set('page', String(opts.page ?? 0));
   params.set('size', String(opts.size ?? 50));
   return get<DispensationPage>(`/api/v1/pharmacy/dispensations?${params}`);
 }
 
-export async function downloadPharmacyCsv(months: number, regionId?: number): Promise<void> {
+export async function downloadPharmacyCsv(months: number, scope: GeoScopeQ): Promise<void> {
   const params = new URLSearchParams();
   params.set('months', String(months));
-  if (regionId) params.set('regionId', String(regionId));
+  appendScope(params, scope);
   const url = `/api/v1/pharmacy/dispensations.csv?${params}`;
   await downloadCsv(url, `pharmacie-${months}m.csv`);
 }

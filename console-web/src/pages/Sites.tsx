@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchRegions, fetchSites, SiteStatus } from '../api/client';
+import { fetchSites, SiteStatus } from '../api/client';
 import { formatInt } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
+import { GeoFilter, GeoScope } from '../components/GeoFilter';
 
 const STATUS_TABS: { value: SiteStatus; label: string }[] = [
   { value: 'all',     label: 'Tous' },
@@ -40,18 +41,13 @@ function sigdepBadge(flag: boolean | null): { label: string; tone: string } {
 export function Sites() {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<SiteStatus>('all');
-  const [regionId, setRegionId] = useState<number | undefined>(undefined);
+  const [scope, setScope] = useState<GeoScope>({});
   const [page, setPage] = useState(0);
   const size = 50;
 
-  const regions = useQuery({
-    queryKey: ['regions'],
-    queryFn: fetchRegions,
-  });
-
   const sites = useQuery({
-    queryKey: ['sites', query, status, regionId, page],
-    queryFn: () => fetchSites({ q: query, status, regionId, page, size }),
+    queryKey: ['sites', query, status, scope, page],
+    queryFn: () => fetchSites({ q: query, status, ...scope, page, size }),
   });
 
   const totalPages = sites.data ? Math.max(1, Math.ceil(sites.data.total / sites.data.size)) : 1;
@@ -62,15 +58,7 @@ export function Sites() {
         title="Sites"
         subtitle={sites.data ? `${formatInt(sites.data.total)} sites` : 'Chargement…'}
         right={<>
-          <select
-            value={regionId ?? ''}
-            onChange={e => { setRegionId(e.target.value ? Number(e.target.value) : undefined); setPage(0); }}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm bg-white">
-            <option value="">Toutes les régions</option>
-            {regions.data?.map(r => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
+          <GeoFilter value={scope} onChange={s => { setScope(s); setPage(0); }} />
           <input
             type="search"
             value={query}

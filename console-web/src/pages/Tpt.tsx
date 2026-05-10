@@ -5,10 +5,11 @@ import {
   Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import {
-  downloadTptCsv, fetchRegions, fetchTptRecords, fetchTptSummary,
+  downloadTptCsv, fetchTptRecords, fetchTptSummary,
 } from '../api/client';
 import { Kpi, formatInt, formatPercent } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
+import { GeoFilter, GeoScope } from '../components/GeoFilter';
 
 const PERIODS = [
   { months: 12, label: '12 derniers mois' },
@@ -25,26 +26,25 @@ function formatDate(iso: string | null): string {
 
 export function Tpt() {
   const [months, setMonths] = useState(60);
-  const [regionId, setRegionId] = useState<number | undefined>(undefined);
+  const [scope, setScope] = useState<GeoScope>({});
   const [page, setPage] = useState(0);
   const [exporting, setExporting] = useState(false);
   const size = 50;
 
-  const regions = useQuery({ queryKey: ['regions'], queryFn: fetchRegions });
   const summary = useQuery({
-    queryKey: ['tpt-summary', months, regionId],
-    queryFn: () => fetchTptSummary(months, regionId),
+    queryKey: ['tpt-summary', months, scope],
+    queryFn: () => fetchTptSummary(months, scope),
   });
   const records = useQuery({
-    queryKey: ['tpt-records', months, regionId, page],
-    queryFn: () => fetchTptRecords({ months, regionId, page, size }),
+    queryKey: ['tpt-records', months, scope, page],
+    queryFn: () => fetchTptRecords({ months, ...scope, page, size }),
   });
 
   const totalPages = records.data ? Math.max(1, Math.ceil(records.data.total / records.data.size)) : 1;
 
   async function handleExport() {
     setExporting(true);
-    try { await downloadTptCsv(months, regionId); }
+    try { await downloadTptCsv(months, scope); }
     catch (err) { /* eslint-disable-next-line no-console */ console.error(err); }
     finally { setExporting(false); }
   }
@@ -55,15 +55,7 @@ export function Tpt() {
         title="TPT"
         subtitle="Thérapie préventive de la tuberculose"
         right={<>
-          <select
-            value={regionId ?? ''}
-            onChange={e => { setRegionId(e.target.value ? Number(e.target.value) : undefined); setPage(0); }}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm bg-white">
-            <option value="">Toutes les régions</option>
-            {regions.data?.map(r => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
+          <GeoFilter value={scope} onChange={s => { setScope(s); setPage(0); }} />
           <select
             value={months}
             onChange={e => { setMonths(Number(e.target.value)); setPage(0); }}

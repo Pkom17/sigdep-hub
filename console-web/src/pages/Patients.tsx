@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { downloadPatientsCsv, fetchPatients } from '../api/client';
 import { formatInt } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
+import { GeoFilter, GeoScope } from '../components/GeoFilter';
 
 function age(birthDate: string | null): string {
   if (!birthDate) return '—';
@@ -25,20 +26,21 @@ const SEX_LABEL: Record<string, string> = { M: 'Homme', F: 'Femme' };
 
 export function Patients() {
   const [query, setQuery] = useState('');
+  const [scope, setScope] = useState<GeoScope>({});
   const [page, setPage] = useState(0);
   const [exporting, setExporting] = useState(false);
   const size = 25;
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['patients', query, page],
-    queryFn: () => fetchPatients(query, page, size),
+    queryKey: ['patients', query, scope, page],
+    queryFn: () => fetchPatients({ q: query, ...scope, page, size }),
   });
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.size)) : 1;
 
   async function handleExport() {
     setExporting(true);
-    try { await downloadPatientsCsv(query); }
+    try { await downloadPatientsCsv({ q: query, ...scope }); }
     catch (err) { /* eslint-disable-next-line no-console */ console.error(err); }
     finally { setExporting(false); }
   }
@@ -49,6 +51,7 @@ export function Patients() {
         title="Patients"
         subtitle={data ? `${formatInt(data.total)} patients` : 'Chargement…'}
         right={<>
+          <GeoFilter value={scope} onChange={s => { setScope(s); setPage(0); }} />
           <input
             type="search"
             value={query}

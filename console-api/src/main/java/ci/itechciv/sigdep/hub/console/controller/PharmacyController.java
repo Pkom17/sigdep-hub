@@ -28,27 +28,36 @@ public class PharmacyController {
     @GetMapping("/summary")
     public PharmacySummary summary(
             @RequestParam(defaultValue = "12") int months,
-            @RequestParam(required = false) Long regionId) {
-        return service.summary(Math.max(1, Math.min(120, months)), regionId);
+            @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long siteId) {
+        return service.summary(Math.max(1, Math.min(120, months)),
+                regionId, districtId, siteId);
     }
 
     @GetMapping("/dispensations")
     public DispensationPage dispensations(
             @RequestParam(defaultValue = "12") int months,
             @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long siteId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return service.dispensations(Math.max(1, Math.min(120, months)), regionId, page, size);
+        return service.dispensations(Math.max(1, Math.min(120, months)),
+                regionId, districtId, siteId, page, size);
     }
 
     @GetMapping(value = "/dispensations.csv", produces = "text/csv;charset=UTF-8")
     public void dispensationsCsv(
             @RequestParam(defaultValue = "12") int months,
             @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long siteId,
             HttpServletResponse response) throws IOException {
 
         int safeMonths = Math.max(1, Math.min(120, months));
-        DispensationPage page = service.dispensations(safeMonths, regionId, 0, 5000);
+        DispensationPage page = service.dispensations(safeMonths,
+                regionId, districtId, siteId, 0, 5000);
 
         String filename = "pharmacie-" + safeMonths + "m.csv";
         response.setContentType("text/csv;charset=UTF-8");

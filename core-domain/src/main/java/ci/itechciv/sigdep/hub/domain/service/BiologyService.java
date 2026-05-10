@@ -24,13 +24,44 @@ public class BiologyService {
     private static final String CD4_NAME_LIKE = "%CD4%";
     private static final BigDecimal SUPPRESSED = new BigDecimal("1000");
 
-    /** SQL fragment that scopes a query to a region; empty if regionId is null. */
-    private static String regionFilter(Long regionId) {
-        return regionId == null
-                ? ""
-                : " JOIN core.sites s ON s.id = lr.site_id"
-                + " JOIN core.districts d ON d.id = s.district_id"
-                + " AND d.region_id = ?";
+    /**
+     * SQL fragment that scopes a query by region / district / site. Always
+     * a JOIN on core.sites (alias "s"), so it can be inserted right after
+     * the FROM table without disturbing the WHERE clause downstream. The
+     * tightest filter wins: site > district > region.
+     */
+    private static String geoFilter(Long regionId, Long districtId, Long siteId) {
+        if (siteId != null) {
+            return " JOIN core.sites s ON s.id = lr.site_id AND s.id = ?";
+        }
+        if (districtId != null) {
+            return " JOIN core.sites s ON s.id = lr.site_id AND s.district_id = ?";
+        }
+        if (regionId != null) {
+            return " JOIN core.sites s ON s.id = lr.site_id"
+                 + " JOIN core.districts d ON d.id = s.district_id AND d.region_id = ?";
+        }
+        return "";
+    }
+
+    /** Picks the single ID matching the geoFilter (or null if no scope). */
+    private static Long geoArg(Long regionId, Long districtId, Long siteId) {
+        if (siteId != null)     return siteId;
+        if (districtId != null) return districtId;
+        return regionId;
+    }
+
+    /**
+     * Builds a JDBC arg array. The geoFilter contributes 0 or 1 leading
+     * argument (its ID), the rest are appended in order.
+     */
+    private static Object[] geoArgs(Long regionId, Long districtId, Long siteId, Object... rest) {
+        Long g = geoArg(regionId, districtId, siteId);
+        if (g == null) return rest;
+        Object[] out = new Object[rest.length + 1];
+        out[0] = g;
+        System.arraycopy(rest, 0, out, 1, rest.length);
+        return out;
     }
 
     private final JdbcTemplate jdbc;
@@ -39,22 +70,22 @@ public class BiologyService {
         this.jdbc = jdbc;
     }
 
-    public BiologySummary summary(int months, Long regionId) {
+    public BiologySummary summary(int months, Long regionId, Long districtId, Long siteId) {
         LocalDate since = LocalDate.now().minusMonths(months);
-        String region = regionFilter(regionId);
+        String region = geoFilter(regionId, districtId, siteId);
 
         // 1. Cards
         Long examsPeriod = jdbc.queryForObject(
                 "SELECT count(*) FROM core.lab_results lr" + region
                         + " WHERE lr.voided = FALSE AND lr.exam_date >= ?",
                 Long.class,
-                buildArgs(regionId, since));
+                geoArgs(regionId, districtId, siteId, since));
 
         Long examsAllTime = jdbc.queryForObject(
                 "SELECT count(*) FROM core.lab_results lr" + region
                         + " WHERE lr.voided = FALSE",
                 Long.class,
-                buildArgs(regionId));
+                geoArgs(regionId, districtId, siteId));
 
         LocalDate lastExamDate = jdbc.query(
                 "SELECT max(exam_date) FROM core.lab_results lr" + region
@@ -64,7 +95,7 @@ public class BiologyService {
                     java.sql.Date d = rs.getDate(1);
                     return d == null ? null : d.toLocalDate();
                 },
-                buildArgs(regionId));
+                geoArgs(regionId, districtId, siteId));
 
         // 2. Viral suppression % over the period
         BigDecimal viralSuppression = jdbc.query(
@@ -74,10 +105,10 @@ public class BiologyService {
                         + " WHERE lr.voided = FALSE AND lr.test_uuid = ?"
                         + "   AND lr.value_numeric IS NOT NULL AND lr.exam_date >= ?",
                 BiologyService::ratioPct,
-                buildArgs(regionId, SUPPRESSED, VL_UUID, since));
+                geoArgs(regionId, districtId, siteId, SUPPRESSED, VL_UUID, since));
 
         // 3. Monthly viral-suppression series (last <months> months ending today)
-        List<MonthlySuppression> series = monthlySuppression(months, regionId);
+        List<MonthlySuppression> series = monthlySuppression(months, regionId, districtId, siteId);
 
         // 4. CD4 distribution (period)
         Cd4Distribution cd4 = jdbc.query(
@@ -99,7 +130,7 @@ public class BiologyService {
                             rs.getLong("b3"), rs.getLong("b4"),
                             rs.getLong("total"));
                 },
-                buildArgs(regionId, CD4_NAME_LIKE, since));
+                geoArgs(regionId, districtId, siteId, CD4_NAME_LIKE, since));
 
         // 5. Top tests (period)
         List<TopTest> topTests = jdbc.query(
@@ -107,7 +138,7 @@ public class BiologyService {
                         + " WHERE lr.voided = FALSE AND lr.exam_date >= ?"
                         + " GROUP BY lr.test_name ORDER BY n DESC LIMIT 10",
                 (rs, i) -> new TopTest(rs.getString("test_name"), rs.getLong("n")),
-                buildArgs(regionId, since));
+                geoArgs(regionId, districtId, siteId, since));
 
         return new BiologySummary(
                 examsPeriod == null ? 0L : examsPeriod,
@@ -120,8 +151,9 @@ public class BiologyService {
                 months);
     }
 
-    private List<MonthlySuppression> monthlySuppression(int months, Long regionId) {
-        String region = regionFilter(regionId);
+    private List<MonthlySuppression> monthlySuppression(int months, Long regionId, Long districtId, Long siteId) {
+        String region = geoFilter(regionId, districtId, siteId);
+        Long g = geoArg(regionId, districtId, siteId);
         // Two correlated subqueries (total / suppressed) per month bucket.
         // Aliases are deliberately reused inside each subquery — the outer
         // generate_series is in its own scope.
@@ -149,9 +181,9 @@ public class BiologyService {
 
         List<Object> args = new ArrayList<>();
         args.add(months);
-        if (regionId != null) args.add(regionId);
+        if (g != null) args.add(g);
         args.add(VL_UUID);
-        if (regionId != null) args.add(regionId);
+        if (g != null) args.add(g);
         args.add(VL_UUID);
         args.add(SUPPRESSED);
 
@@ -181,20 +213,21 @@ public class BiologyService {
      * captures them as two separate rows). Anything else returns each row
      * unchanged.
      */
-    public ExamPage exams(String test, int months, Long regionId, int page, int size) {
+    public ExamPage exams(String test, int months, Long regionId, Long districtId, Long siteId, int page, int size) {
         if ("cd4".equals(test)) {
-            return cd4Exams(months, regionId, page, size);
+            return cd4Exams(months, regionId, districtId, siteId, page, size);
         }
 
         int safeSize = Math.max(1, Math.min(500, size));
         int safePage = Math.max(0, page);
         int offset = safePage * safeSize;
         LocalDate since = LocalDate.now().minusMonths(months);
-        String region = regionFilter(regionId);
+        String region = geoFilter(regionId, districtId, siteId);
+        Long g = geoArg(regionId, districtId, siteId);
 
         StringBuilder where = new StringBuilder(" WHERE lr.voided = FALSE AND lr.exam_date >= ?");
         List<Object> args = new ArrayList<>();
-        if (regionId != null) args.add(regionId);
+        if (g != null) args.add(g);
         args.add(since);
 
         if ("vl".equals(test)) {
@@ -234,12 +267,12 @@ public class BiologyService {
      * absolute count ("Numération des lymphocytes CD4") and the percentage
      * ("CD4%") are surfaced as separate columns; either can be NULL.
      */
-    private ExamPage cd4Exams(int months, Long regionId, int page, int size) {
+    private ExamPage cd4Exams(int months, Long regionId, Long districtId, Long siteId, int page, int size) {
         int safeSize = Math.max(1, Math.min(500, size));
         int safePage = Math.max(0, page);
         int offset = safePage * safeSize;
         LocalDate since = LocalDate.now().minusMonths(months);
-        String region = regionFilter(regionId);
+        String region = geoFilter(regionId, districtId, siteId);
 
         // Aggregate two rows (abs + pct) into one. There can also be a
         // single row of either kind on a given date — coalesce handles that.
@@ -250,7 +283,7 @@ public class BiologyService {
                 + "   AND lr.value_numeric IS NOT NULL"
                 + "   AND lr.exam_date >= ?";
 
-        Object[] args = buildArgs(regionId, CD4_NAME_LIKE, since);
+        Object[] args = geoArgs(regionId, districtId, siteId, CD4_NAME_LIKE, since);
 
         Long total = jdbc.queryForObject(
                 "SELECT count(*) FROM (SELECT lr.patient_id, lr.exam_date" + baseFrom
@@ -262,10 +295,21 @@ public class BiologyService {
         pagedArgs[args.length] = safeSize;
         pagedArgs[args.length + 1] = offset;
 
-        // We GROUP BY (patient, date, site) — almost always 1:1:1 in the
-        // source data — so we can simply reference site columns. Joining
-        // the patient_identifiers via a scalar subquery keeps the GROUP BY
-        // shape minimal.
+        // The detailed CD4 query needs a sites JOIN for code/name, plus the
+        // optional geo filter. We fold the geo filter into the same JOIN
+        // for site-level scoping, otherwise we keep the standard chain.
+        String detailedFrom = " FROM core.lab_results lr";
+        if (siteId != null) {
+            detailedFrom += " JOIN core.sites s ON s.id = lr.site_id AND s.id = ?";
+        } else if (districtId != null) {
+            detailedFrom += " JOIN core.sites s ON s.id = lr.site_id AND s.district_id = ?";
+        } else if (regionId != null) {
+            detailedFrom += " JOIN core.sites s ON s.id = lr.site_id"
+                    + " JOIN core.districts d ON d.id = s.district_id AND d.region_id = ?";
+        } else {
+            detailedFrom += " JOIN core.sites s ON s.id = lr.site_id";
+        }
+
         List<ExamRow> rows = jdbc.query(
                 "SELECT lr.patient_id, lr.exam_date,"
                         // "CD4%" exam name contains a literal '%' — match it
@@ -279,10 +323,7 @@ public class BiologyService {
                         + "  (SELECT pi.identifier_value FROM core.patient_identifiers pi"
                         + "     WHERE pi.patient_id = lr.patient_id"
                         + "     ORDER BY pi.id LIMIT 1) AS patient_code"
-                        + " FROM core.lab_results lr"
-                        + " JOIN core.sites s ON s.id = lr.site_id"
-                        + (regionId == null ? "" :
-                            " JOIN core.districts d ON d.id = s.district_id AND d.region_id = ?")
+                        + detailedFrom
                         + " WHERE lr.voided = FALSE"
                         + "   AND lr.test_name ILIKE ?"
                         + "   AND lr.value_numeric IS NOT NULL"
@@ -330,14 +371,6 @@ public class BiologyService {
                 rs.getString("site_name"),
                 rs.getLong("patient_id"),
                 rs.getString("patient_code"));
-    }
-
-    private static Object[] buildArgs(Long regionId, Object... rest) {
-        if (regionId == null) return rest;
-        Object[] out = new Object[rest.length + 1];
-        out[0] = regionId;
-        System.arraycopy(rest, 0, out, 1, rest.length);
-        return out;
     }
 
     public record BiologySummary(

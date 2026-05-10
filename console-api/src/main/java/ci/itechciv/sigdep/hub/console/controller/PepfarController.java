@@ -28,8 +28,10 @@ public class PepfarController {
     public PepfarReport report(
             @RequestParam int fy,
             @RequestParam int q,
-            @RequestParam(required = false) Long regionId) {
-        return service.report(fy, q, regionId);
+            @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long siteId) {
+        return service.report(fy, q, regionId, districtId, siteId);
     }
 
     @GetMapping(value = "/report.csv", produces = "text/csv;charset=UTF-8")
@@ -37,12 +39,18 @@ public class PepfarController {
             @RequestParam int fy,
             @RequestParam int q,
             @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long siteId,
             HttpServletResponse response) throws IOException {
 
-        PepfarReport r = service.report(fy, q, regionId);
+        PepfarReport r = service.report(fy, q, regionId, districtId, siteId);
 
-        String filename = "pepfar-FY" + fy + "Q" + q
-                + (regionId != null ? "-region" + regionId : "") + ".csv";
+        String scopeSuffix;
+        if (siteId != null)          scopeSuffix = "-site" + siteId;
+        else if (districtId != null) scopeSuffix = "-district" + districtId;
+        else if (regionId != null)   scopeSuffix = "-region" + regionId;
+        else                         scopeSuffix = "";
+        String filename = "pepfar-FY" + fy + "Q" + q + scopeSuffix + ".csv";
         response.setContentType("text/csv;charset=UTF-8");
         response.setCharacterEncoding("UTF-8");
         response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");

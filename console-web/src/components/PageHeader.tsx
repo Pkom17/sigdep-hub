@@ -17,7 +17,7 @@ export function PageHeader({
   right?: ReactNode;
 }>) {
   return (
-    <div className="mb-6 pb-4 border-b border-slate-200 flex items-baseline justify-between gap-4 flex-wrap">
+    <div className="mb-6 pb-4 border-b border-slate-200">
       <div className="flex items-stretch gap-3">
         <span aria-hidden="true"
               className="w-1 rounded-full bg-sigdep-500 self-stretch shrink-0" />
@@ -31,7 +31,7 @@ export function PageHeader({
         </div>
       </div>
       {right && (
-        <div className="flex items-center gap-3 flex-wrap">{right}</div>
+        <div className="mt-3 flex items-center gap-3 flex-wrap">{right}</div>
       )}
     </div>
   );

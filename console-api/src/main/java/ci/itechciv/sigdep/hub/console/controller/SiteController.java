@@ -1,8 +1,10 @@
 package ci.itechciv.sigdep.hub.console.controller;
 
 import ci.itechciv.sigdep.hub.domain.service.SiteQueryService;
+import ci.itechciv.sigdep.hub.domain.service.SiteQueryService.DistrictRef;
 import ci.itechciv.sigdep.hub.domain.service.SiteQueryService.RegionRef;
 import ci.itechciv.sigdep.hub.domain.service.SiteQueryService.SitePage;
+import ci.itechciv.sigdep.hub.domain.service.SiteQueryService.SiteRef;
 import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,13 +28,33 @@ public class SiteController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long siteId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return service.list(q, status, regionId, page, size);
+        return service.list(q, status, regionId, districtId, siteId, page, size);
     }
 
     @GetMapping("/regions")
     public List<RegionRef> regions() {
         return service.regions();
+    }
+
+    /** Districts of a region (or all districts if regionId is omitted). */
+    @GetMapping("/districts")
+    public List<DistrictRef> districts(
+            @RequestParam(required = false) Long regionId) {
+        return service.districts(regionId);
+    }
+
+    /**
+     * Sites of a district, or sites of a region when only regionId is given.
+     * Returns an empty list if neither is set, to avoid sending 3,880 sites.
+     */
+    @GetMapping("/list-of")
+    public List<SiteRef> sitesOf(
+            @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId) {
+        return service.sitesOf(regionId, districtId);
     }
 }

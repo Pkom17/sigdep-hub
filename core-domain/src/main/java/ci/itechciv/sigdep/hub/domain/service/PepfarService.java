@@ -62,22 +62,22 @@ public class PepfarService {
         return new QuarterRange(fiscalYear, q, start, end);
     }
 
-    public PepfarReport report(int fiscalYear, int q, Long regionId) {
+    public PepfarReport report(int fiscalYear, int q, Long regionId, Long districtId, Long siteId) {
         QuarterRange qr = quarter(fiscalYear, q);
         return new PepfarReport(qr,
-                txNew(qr, regionId),
-                txCurr(qr, regionId),
-                txPvls(qr, regionId));
+                txNew(qr, regionId, districtId, siteId),
+                txCurr(qr, regionId, districtId, siteId),
+                txPvls(qr, regionId, districtId, siteId));
     }
 
     // ---------- TX_NEW --------------------------------------------------------
 
-    private Disaggregated txNew(QuarterRange qr, Long regionId) {
+    private Disaggregated txNew(QuarterRange qr, Long regionId, Long districtId, Long siteId) {
         // age at end of quarter — DATE_PART would be one option, but
         // birth dates that are just years (born "1971-01-01" placeholder)
         // give consistent results with year-of-month-of-day arithmetic.
         String ageExpr = ageExpr(qr.end());
-        String region = regionJoin(regionId);
+        String region = regionJoin(regionId, districtId, siteId);
 
         String sql = "SELECT p.sex AS sex, " + ageBandExpr(ageExpr) + " AS band, count(*) AS n"
                 + " FROM core.treatment_initiations ti"
@@ -86,12 +86,12 @@ public class PepfarService {
                 + "   AND ti.arv_init_date BETWEEN ? AND ?"
                 + " GROUP BY p.sex, " + ageBandExpr(ageExpr);
 
-        return aggregate(sql, buildArgs(regionId, qr.start(), qr.end()));
+        return aggregate(sql, buildArgs(regionId, districtId, siteId, qr.start(), qr.end()));
     }
 
     // ---------- TX_CURR -------------------------------------------------------
 
-    private Disaggregated txCurr(QuarterRange qr, Long regionId) {
+    private Disaggregated txCurr(QuarterRange qr, Long regionId, Long districtId, Long siteId) {
         // "Active" subquery: patients with init <= Q.end, no closure <= Q.end,
         // and last visit before Q.end with arv_treatment_days has remaining
         // coverage (or expired ≤ 28 days). Patients with init but no visits
@@ -127,10 +127,8 @@ public class PepfarService {
                 + "  GROUP BY p.id, p.sex, p.birth_date, p.site_id"
                 + ")";
 
-        // join to sites/districts only if region filter applied
-        String regionFromActive = regionId == null ? "" :
-                " JOIN core.sites s ON s.id = ap.site_id"
-                + " JOIN core.districts d ON d.id = s.district_id AND d.region_id = ?";
+        // join to sites/districts only if a geo filter applied
+        String regionFromActive = regionJoinAp(regionId, districtId, siteId);
 
         String ageExprAp = "DATE_PART('year', AGE(DATE '" + qr.end() + "', ap.birth_date))";
 
@@ -139,7 +137,7 @@ public class PepfarService {
                 + " FROM active_patients ap" + regionFromActive
                 + " GROUP BY ap.sex, " + ageBandExpr(ageExprAp);
 
-        // Args order: <= ?, <= ?, <= ?, <= ?, grace, end, [regionId]
+        // Args order: <= ?, <= ?, <= ?, <= ?, grace, end, [geoId]
         List<Object> args = new ArrayList<>();
         args.add(qr.end());                      // init <= end
         args.add(qr.end());                      // closure <= end
@@ -147,14 +145,15 @@ public class PepfarService {
         args.add(qr.end());                      // visit <= end (latest)
         args.add(CURR_GRACE_DAYS);               // grace
         args.add(qr.end());                      // last visit + days + grace >= end
-        if (regionId != null) args.add(regionId);
+        Long g = geoArg(regionId, districtId, siteId);
+        if (g != null) args.add(g);
 
         return aggregate(sql, args.toArray());
     }
 
     // ---------- TX_PVLS -------------------------------------------------------
 
-    private TxPvls txPvls(QuarterRange qr, Long regionId) {
+    private TxPvls txPvls(QuarterRange qr, Long regionId, Long districtId, Long siteId) {
         // Eligible: on ARV ≥ 6 months at Q.end (init <= Q.end - 6 months),
         // no closure on or before Q.end, has at least one VL test with
         // numeric value in [Q.end - 12 months, Q.end].
@@ -190,9 +189,7 @@ public class PepfarService {
                 + "        count(*) FILTER (WHERE lv.value_numeric < ?) AS numer"
                 + " FROM eligible e"
                 + " JOIN latest_vl lv ON lv.patient_id = e.id"
-                + (regionId == null ? "" :
-                        " JOIN core.sites s ON s.id = e.site_id"
-                        + " JOIN core.districts d ON d.id = s.district_id AND d.region_id = ?")
+                + regionJoinE(regionId, districtId, siteId)
                 + " GROUP BY e.sex, " + ageBandExpr("DATE_PART('year', AGE(DATE '" + qr.end() + "', e.birth_date))");
 
         List<Object> args = new ArrayList<>();
@@ -202,7 +199,8 @@ public class PepfarService {
         args.add(sinceVl);      // VL window start
         args.add(qr.end());     // VL window end
         args.add(SUPPRESSED);   // numerator threshold
-        if (regionId != null) args.add(regionId);
+        Long g = geoArg(regionId, districtId, siteId);
+        if (g != null) args.add(g);
 
         List<DisaggCell> denomCells = new ArrayList<>();
         List<DisaggCell> numerCells = new ArrayList<>();
@@ -245,10 +243,43 @@ public class PepfarService {
         return s;
     }
 
-    private static String regionJoin(Long regionId) {
-        return regionId == null ? ""
-                : " JOIN core.sites s ON s.id = p.site_id"
-                + " JOIN core.districts d ON d.id = s.district_id AND d.region_id = ?";
+    /**
+     * Geo filter for queries with a {@code core.patients p} table in scope.
+     * Joins core.sites/districts off {@code p.site_id} unless the filter is
+     * site-level (no extra join needed beyond a comparison).
+     */
+    private static String regionJoin(Long regionId, Long districtId, Long siteId) {
+        return geoJoinFor("p", regionId, districtId, siteId);
+    }
+
+    /** Same but for the {@code active_patients ap} CTE alias used by TX_CURR. */
+    private static String regionJoinAp(Long regionId, Long districtId, Long siteId) {
+        return geoJoinFor("ap", regionId, districtId, siteId);
+    }
+
+    /** Same but for the {@code eligible e} CTE alias used by TX_PVLS. */
+    private static String regionJoinE(Long regionId, Long districtId, Long siteId) {
+        return geoJoinFor("e", regionId, districtId, siteId);
+    }
+
+    private static String geoJoinFor(String alias, Long regionId, Long districtId, Long siteId) {
+        if (siteId != null) {
+            return " JOIN core.sites s ON s.id = " + alias + ".site_id AND s.id = ?";
+        }
+        if (districtId != null) {
+            return " JOIN core.sites s ON s.id = " + alias + ".site_id AND s.district_id = ?";
+        }
+        if (regionId != null) {
+            return " JOIN core.sites s ON s.id = " + alias + ".site_id"
+                 + " JOIN core.districts d ON d.id = s.district_id AND d.region_id = ?";
+        }
+        return "";
+    }
+
+    private static Long geoArg(Long regionId, Long districtId, Long siteId) {
+        if (siteId != null)     return siteId;
+        if (districtId != null) return districtId;
+        return regionId;
     }
 
     /** Age in completed years at the given as-of date. */
@@ -266,13 +297,16 @@ public class PepfarService {
                 + " END";
     }
 
-    private static Object[] buildArgs(Long regionId, Object... rest) {
-        if (regionId == null) return rest;
+    /**
+     * The geo JOIN sits in the FROM clause *before* the WHERE — so its
+     * parameter must come before the WHERE-clause args.
+     */
+    private static Object[] buildArgs(Long regionId, Long districtId, Long siteId, Object... rest) {
+        Long g = geoArg(regionId, districtId, siteId);
+        if (g == null) return rest;
         Object[] out = new Object[rest.length + 1];
-        System.arraycopy(rest, 0, out, 0, rest.length);
-        out[rest.length] = regionId;
-        // region join sits at the *end* of the FROM clause, so the regionId
-        // parameter goes after the existing args.
+        out[0] = g;
+        System.arraycopy(rest, 0, out, 1, rest.length);
         return out;
     }
 

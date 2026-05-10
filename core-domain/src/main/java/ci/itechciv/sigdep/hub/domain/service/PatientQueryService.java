@@ -20,7 +20,8 @@ public class PatientQueryService {
         this.jdbc = jdbc;
     }
 
-    public PatientPage list(String search, int page, int size) {
+    public PatientPage list(String search, Long regionId, Long districtId, Long siteId,
+                            int page, int size) {
         int safeSize = Math.max(1, Math.min(500, size));
         int safePage = Math.max(0, page);
         int offset = safePage * safeSize;
@@ -28,52 +29,70 @@ public class PatientQueryService {
         String like = search == null || search.isBlank() ? null : "%" + search.trim() + "%";
 
         StringBuilder where = new StringBuilder("WHERE p.voided = FALSE");
+        List<Object> args = new ArrayList<>();
         if (like != null) {
             where.append(" AND (p.source_uuid::text ILIKE ? ")
                  .append("OR EXISTS (SELECT 1 FROM core.patient_identifiers pi ")
                  .append("WHERE pi.patient_id = p.id AND pi.identifier_value ILIKE ?))");
+            args.add(like);
+            args.add(like);
         }
 
-        Long total = like == null
-                ? jdbc.queryForObject("SELECT count(*) FROM core.patients p " + where, Long.class)
-                : jdbc.queryForObject("SELECT count(*) FROM core.patients p " + where, Long.class, like, like);
+        // Geo filter (tightest wins). Site/district join straight off the
+        // existing s alias, region needs the districts table.
+        String regionExtraJoin = "";
+        if (siteId != null) {
+            where.append(" AND s.id = ?");
+            args.add(siteId);
+        } else if (districtId != null) {
+            where.append(" AND s.district_id = ?");
+            args.add(districtId);
+        } else if (regionId != null) {
+            regionExtraJoin = " JOIN core.districts d ON d.id = s.district_id AND d.region_id = ?";
+            args.add(regionId);
+        }
 
-        String sql = """
-                SELECT p.id, p.source_uuid, p.sex, p.birth_date,
-                       s.code AS site_code, s.name AS site_name,
-                       (SELECT pi.identifier_value FROM core.patient_identifiers pi
-                          JOIN core.identifier_types it ON it.id = pi.identifier_type_id
-                          WHERE pi.patient_id = p.id AND it.code = 'CODE_ARV'
-                          ORDER BY pi.id LIMIT 1) AS code_arv,
-                       (SELECT pi.identifier_value FROM core.patient_identifiers pi
-                          JOIN core.identifier_types it ON it.id = pi.identifier_type_id
-                          WHERE pi.patient_id = p.id AND it.code = 'UPID'
-                          ORDER BY pi.id LIMIT 1) AS upid,
-                       (SELECT min(COALESCE(ti.arv_init_date, ti.enrollment_date))
-                          FROM core.treatment_initiations ti
-                          WHERE ti.patient_id = p.id AND ti.voided = FALSE) AS arv_init_date,
-                       (SELECT ti.arv_regimen_initial FROM core.treatment_initiations ti
-                          WHERE ti.patient_id = p.id AND ti.voided = FALSE
-                          ORDER BY COALESCE(ti.arv_init_date, ti.enrollment_date) ASC NULLS LAST
-                          LIMIT 1) AS arv_regimen_initial,
-                       (SELECT max(v.visit_date) FROM core.visits v
-                          WHERE v.patient_id = p.id AND v.voided = FALSE) AS last_visit_date,
-                       (SELECT v.arv_regimen FROM core.visits v
-                          WHERE v.patient_id = p.id AND v.voided = FALSE
-                            AND v.arv_regimen IS NOT NULL
-                          ORDER BY v.visit_date DESC NULLS LAST, v.id DESC
-                          LIMIT 1) AS last_arv_regimen
-                FROM core.patients p
-                JOIN core.sites s ON s.id = p.site_id
-                """ + where + """
-                 ORDER BY p.id DESC
-                LIMIT ? OFFSET ?
-                """;
+        String fromAndJoins = "FROM core.patients p"
+                + " JOIN core.sites s ON s.id = p.site_id"
+                + regionExtraJoin;
 
-        List<PatientRow> rows = like == null
-                ? jdbc.query(sql, this::mapRow, safeSize, offset)
-                : jdbc.query(sql, this::mapRow, like, like, safeSize, offset);
+        Long total = jdbc.queryForObject(
+                "SELECT count(*) " + fromAndJoins + " " + where,
+                Long.class, args.toArray());
 
+        String sql = "SELECT p.id, p.source_uuid, p.sex, p.birth_date,"
+                + "       s.code AS site_code, s.name AS site_name,"
+                + "       (SELECT pi.identifier_value FROM core.patient_identifiers pi"
+                + "          JOIN core.identifier_types it ON it.id = pi.identifier_type_id"
+                + "          WHERE pi.patient_id = p.id AND it.code = 'CODE_ARV'"
+                + "          ORDER BY pi.id LIMIT 1) AS code_arv,"
+                + "       (SELECT pi.identifier_value FROM core.patient_identifiers pi"
+                + "          JOIN core.identifier_types it ON it.id = pi.identifier_type_id"
+                + "          WHERE pi.patient_id = p.id AND it.code = 'UPID'"
+                + "          ORDER BY pi.id LIMIT 1) AS upid,"
+                + "       (SELECT min(COALESCE(ti.arv_init_date, ti.enrollment_date))"
+                + "          FROM core.treatment_initiations ti"
+                + "          WHERE ti.patient_id = p.id AND ti.voided = FALSE) AS arv_init_date,"
+                + "       (SELECT ti.arv_regimen_initial FROM core.treatment_initiations ti"
+                + "          WHERE ti.patient_id = p.id AND ti.voided = FALSE"
+                + "          ORDER BY COALESCE(ti.arv_init_date, ti.enrollment_date) ASC NULLS LAST"
+                + "          LIMIT 1) AS arv_regimen_initial,"
+                + "       (SELECT max(v.visit_date) FROM core.visits v"
+                + "          WHERE v.patient_id = p.id AND v.voided = FALSE) AS last_visit_date,"
+                + "       (SELECT v.arv_regimen FROM core.visits v"
+                + "          WHERE v.patient_id = p.id AND v.voided = FALSE"
+                + "            AND v.arv_regimen IS NOT NULL"
+                + "          ORDER BY v.visit_date DESC NULLS LAST, v.id DESC"
+                + "          LIMIT 1) AS last_arv_regimen"
+                + " " + fromAndJoins + " " + where
+                + " ORDER BY p.id DESC"
+                + " LIMIT ? OFFSET ?";
+
+        List<Object> pagedArgs = new ArrayList<>(args);
+        pagedArgs.add(safeSize);
+        pagedArgs.add(offset);
+
+        List<PatientRow> rows = jdbc.query(sql, this::mapRow, pagedArgs.toArray());
         return new PatientPage(rows, total == null ? 0L : total, safePage, safeSize);
     }
 

@@ -32,9 +32,12 @@ public class PatientController {
     @GetMapping
     public PatientPage list(
             @RequestParam(required = false) String q,
+            @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long siteId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size) {
-        return service.list(q, page, size);
+        return service.list(q, regionId, districtId, siteId, page, size);
     }
 
     @GetMapping("/{id}")
@@ -53,9 +56,12 @@ public class PatientController {
     @GetMapping(value = "/list.csv", produces = "text/csv;charset=UTF-8")
     public void listCsv(
             @RequestParam(required = false) String q,
+            @RequestParam(required = false) Long regionId,
+            @RequestParam(required = false) Long districtId,
+            @RequestParam(required = false) Long siteId,
             HttpServletResponse response) throws IOException {
 
-        PatientPage page = service.list(q, 0, 5000);
+        PatientPage page = service.list(q, regionId, districtId, siteId, 0, 5000);
 
         String filename = "patients.csv";
         response.setContentType("text/csv;charset=UTF-8");

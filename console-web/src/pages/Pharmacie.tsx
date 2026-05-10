@@ -5,10 +5,11 @@ import {
   Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import {
-  downloadPharmacyCsv, fetchPharmacyDispensations, fetchPharmacySummary, fetchRegions,
+  downloadPharmacyCsv, fetchPharmacyDispensations, fetchPharmacySummary,
 } from '../api/client';
 import { Kpi, formatInt, formatPercent } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
+import { GeoFilter, GeoScope } from '../components/GeoFilter';
 
 const PERIODS = [
   { months: 12, label: '12 derniers mois' },
@@ -24,19 +25,18 @@ function formatDate(iso: string | null): string {
 
 export function Pharmacie() {
   const [months, setMonths] = useState(12);
-  const [regionId, setRegionId] = useState<number | undefined>(undefined);
+  const [scope, setScope] = useState<GeoScope>({});
   const [page, setPage] = useState(0);
   const [exporting, setExporting] = useState(false);
   const size = 50;
 
-  const regions = useQuery({ queryKey: ['regions'], queryFn: fetchRegions });
   const summary = useQuery({
-    queryKey: ['pharmacy-summary', months, regionId],
-    queryFn: () => fetchPharmacySummary(months, regionId),
+    queryKey: ['pharmacy-summary', months, scope],
+    queryFn: () => fetchPharmacySummary(months, scope),
   });
   const dispensations = useQuery({
-    queryKey: ['pharmacy-dispensations', months, regionId, page],
-    queryFn: () => fetchPharmacyDispensations({ months, regionId, page, size }),
+    queryKey: ['pharmacy-dispensations', months, scope, page],
+    queryFn: () => fetchPharmacyDispensations({ months, ...scope, page, size }),
   });
 
   const totalPages = dispensations.data
@@ -45,7 +45,7 @@ export function Pharmacie() {
 
   async function handleExport() {
     setExporting(true);
-    try { await downloadPharmacyCsv(months, regionId); }
+    try { await downloadPharmacyCsv(months, scope); }
     catch (err) { /* eslint-disable-next-line no-console */ console.error(err); }
     finally { setExporting(false); }
   }
@@ -64,15 +64,7 @@ export function Pharmacie() {
         title="Pharmacie / ARV"
         subtitle="Dispensations ARV · régimes, durées, file pharmacie"
         right={<>
-          <select
-            value={regionId ?? ''}
-            onChange={e => { setRegionId(e.target.value ? Number(e.target.value) : undefined); setPage(0); }}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm bg-white">
-            <option value="">Toutes les régions</option>
-            {regions.data?.map(r => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
+          <GeoFilter value={scope} onChange={s => { setScope(s); setPage(0); }} />
           <select
             value={months}
             onChange={e => { setMonths(Number(e.target.value)); setPage(0); }}

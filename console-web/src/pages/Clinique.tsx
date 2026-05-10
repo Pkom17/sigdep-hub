@@ -13,10 +13,10 @@ import {
   downloadClinicCsv,
   fetchClinicSummary,
   fetchClinicVisits,
-  fetchRegions,
 } from "../api/client";
 import { Kpi, formatInt, formatPercent } from "../components/Kpi";
 import { PageHeader } from "../components/PageHeader";
+import { GeoFilter, GeoScope } from "../components/GeoFilter";
 
 const PERIODS = [
   { months: 12, label: "12 derniers mois" },
@@ -42,19 +42,18 @@ function shortenWho(s: string | null): string {
 
 export function Clinique() {
   const [months, setMonths] = useState(12);
-  const [regionId, setRegionId] = useState<number | undefined>(undefined);
+  const [scope, setScope] = useState<GeoScope>({});
   const [page, setPage] = useState(0);
   const [exporting, setExporting] = useState(false);
   const size = 50;
 
-  const regions = useQuery({ queryKey: ["regions"], queryFn: fetchRegions });
   const summary = useQuery({
-    queryKey: ["clinic-summary", months, regionId],
-    queryFn: () => fetchClinicSummary(months, regionId),
+    queryKey: ["clinic-summary", months, scope],
+    queryFn: () => fetchClinicSummary(months, scope),
   });
   const visits = useQuery({
-    queryKey: ["clinic-visits", months, regionId, page],
-    queryFn: () => fetchClinicVisits({ months, regionId, page, size }),
+    queryKey: ["clinic-visits", months, scope, page],
+    queryFn: () => fetchClinicVisits({ months, ...scope, page, size }),
   });
 
   const totalPages = visits.data
@@ -64,7 +63,7 @@ export function Clinique() {
   async function handleExport() {
     setExporting(true);
     try {
-      await downloadClinicCsv(months, regionId);
+      await downloadClinicCsv(months, scope);
     } catch (err) {
       /* eslint-disable-next-line no-console */ console.error(err);
     } finally {
@@ -78,19 +77,7 @@ export function Clinique() {
         title="Suivi clinique"
         subtitle="Visites de suivi PEC · stades OMS, dépistage TB, régimes ARV"
         right={<>
-          <select
-            value={regionId ?? ""}
-            onChange={(e) => {
-              setRegionId(e.target.value ? Number(e.target.value) : undefined);
-              setPage(0);
-            }}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm bg-white"
-          >
-            <option value="">Toutes les régions</option>
-            {regions.data?.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
+          <GeoFilter value={scope} onChange={s => { setScope(s); setPage(0); }} />
           <select
             value={months}
             onChange={(e) => {
