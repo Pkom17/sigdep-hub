@@ -89,23 +89,26 @@ public class ClinicService {
         BigDecimal whoStagePct = pct(withWhoStage, visitsInPeriod);
 
         // Distributions
+        // Concept UUIDs are hardcoded constants — inline them rather than
+        // binding, so the geo arg (a Long) keeps its single `?` slot in the
+        // JOIN clause without conflicting with a string `?` in the SELECT.
         List<Bucket> whoStageDist = jdbc.query(
-                "SELECT v.extra_data->>? AS k, count(*) AS n"
+                "SELECT v.extra_data->>'" + WHO_STAGE_KEY + "' AS k, count(*) AS n"
                         + " FROM core.visits v" + region
                         + " WHERE v.voided = FALSE AND v.visit_date >= ?"
-                        + "   AND v.extra_data ?? ?"
+                        + "   AND v.extra_data ?? '" + WHO_STAGE_KEY + "'"
                         + " GROUP BY k ORDER BY n DESC",
                 (rs, i) -> new Bucket(rs.getString("k"), rs.getLong("n")),
-                geoArgs(regionId, districtId, siteId, WHO_STAGE_KEY, since, WHO_STAGE_KEY));
+                geoArgs(regionId, districtId, siteId, since));
 
         List<Bucket> tbScreenDist = jdbc.query(
-                "SELECT v.extra_data->>? AS k, count(*) AS n"
+                "SELECT v.extra_data->>'" + TB_SCREEN_KEY + "' AS k, count(*) AS n"
                         + " FROM core.visits v" + region
                         + " WHERE v.voided = FALSE AND v.visit_date >= ?"
-                        + "   AND v.extra_data ?? ?"
+                        + "   AND v.extra_data ?? '" + TB_SCREEN_KEY + "'"
                         + " GROUP BY k ORDER BY n DESC",
                 (rs, i) -> new Bucket(rs.getString("k"), rs.getLong("n")),
-                geoArgs(regionId, districtId, siteId, TB_SCREEN_KEY, since, TB_SCREEN_KEY));
+                geoArgs(regionId, districtId, siteId, since));
 
         List<Bucket> arvDist = jdbc.query(
                 "SELECT v.arv_regimen AS k, count(*) AS n FROM core.visits v" + region

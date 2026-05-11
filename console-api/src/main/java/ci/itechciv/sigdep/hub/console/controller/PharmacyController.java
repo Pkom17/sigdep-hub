@@ -1,5 +1,7 @@
 package ci.itechciv.sigdep.hub.console.controller;
 
+import ci.itechciv.sigdep.hub.console.security.AuthScope;
+import ci.itechciv.sigdep.hub.console.security.AuthScope.Scope;
 import ci.itechciv.sigdep.hub.domain.service.PharmacyService;
 import ci.itechciv.sigdep.hub.domain.service.PharmacyService.DispensationPage;
 import ci.itechciv.sigdep.hub.domain.service.PharmacyService.DispensationRow;
@@ -16,13 +18,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/pharmacy")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','ANALYST','AUDITOR')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','DISTRICT_COORD','SITE_USER','ANALYST','AUDITOR')")
 public class PharmacyController {
 
     private final PharmacyService service;
+    private final AuthScope authScope;
 
-    public PharmacyController(PharmacyService service) {
+    public PharmacyController(PharmacyService service, AuthScope authScope) {
         this.service = service;
+        this.authScope = authScope;
     }
 
     @GetMapping("/summary")
@@ -31,8 +35,9 @@ public class PharmacyController {
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) Long districtId,
             @RequestParam(required = false) Long siteId) {
+        Scope s = authScope.effective(regionId, districtId, siteId);
         return service.summary(Math.max(1, Math.min(120, months)),
-                regionId, districtId, siteId);
+                s.regionId(), s.districtId(), s.siteId());
     }
 
     @GetMapping("/dispensations")
@@ -45,8 +50,9 @@ public class PharmacyController {
             @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
+        Scope s = authScope.effective(regionId, districtId, siteId);
         return service.dispensations(Math.max(1, Math.min(120, months)),
-                regionId, districtId, siteId, sort, dir, page, size);
+                s.regionId(), s.districtId(), s.siteId(), sort, dir, page, size);
     }
 
     @GetMapping(value = "/dispensations.csv", produces = "text/csv;charset=UTF-8")
@@ -58,8 +64,9 @@ public class PharmacyController {
             HttpServletResponse response) throws IOException {
 
         int safeMonths = Math.max(1, Math.min(120, months));
+        Scope s = authScope.effective(regionId, districtId, siteId);
         DispensationPage page = service.dispensations(safeMonths,
-                regionId, districtId, siteId, null, null, 0, 5000);
+                s.regionId(), s.districtId(), s.siteId(), null, null, 0, 5000);
 
         String filename = "pharmacie-" + safeMonths + "m.csv";
         response.setContentType("text/csv;charset=UTF-8");

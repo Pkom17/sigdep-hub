@@ -17,6 +17,7 @@
       { "name": "SUPER_ADMIN",     "description": "Full administration of the platform" },
       { "name": "NATIONAL_VIEWER", "description": "Read-only access to national KPIs and dashboards" },
       { "name": "REGIONAL_COORD",  "description": "Regional coordinator — read across sites of a region" },
+      { "name": "DISTRICT_COORD",  "description": "District coordinator — read across sites of a district" },
       { "name": "SITE_USER",       "description": "Site-level user — access scoped to one site" },
       { "name": "ANALYST",         "description": "Analyst — read patient timelines and exports" },
       { "name": "IT_ADMIN",        "description": "Technical administration (sync, users, configuration)" },
@@ -50,7 +51,51 @@
         "pkce.code.challenge.method": "S256",
         "post.logout.redirect.uris": "http://127.0.0.1:5173/##http://localhost:5173/##http://127.0.0.1:8041/##http://localhost:8041/"
       },
-      "fullScopeAllowed": true
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "regionId",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "regionId",
+            "claim.name": "regionId",
+            "jsonType.label": "long",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "districtId",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "districtId",
+            "claim.name": "districtId",
+            "jsonType.label": "long",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "siteId",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "siteId",
+            "claim.name": "siteId",
+            "jsonType.label": "long",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "clientId": "sigdep-console-api",

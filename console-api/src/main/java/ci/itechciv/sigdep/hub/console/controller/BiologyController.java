@@ -1,5 +1,7 @@
 package ci.itechciv.sigdep.hub.console.controller;
 
+import ci.itechciv.sigdep.hub.console.security.AuthScope;
+import ci.itechciv.sigdep.hub.console.security.AuthScope.Scope;
 import ci.itechciv.sigdep.hub.domain.service.BiologyService;
 import ci.itechciv.sigdep.hub.domain.service.BiologyService.BiologySummary;
 import ci.itechciv.sigdep.hub.domain.service.BiologyService.ExamPage;
@@ -16,13 +18,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/biology")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','ANALYST','AUDITOR')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','DISTRICT_COORD','SITE_USER','ANALYST','AUDITOR')")
 public class BiologyController {
 
     private final BiologyService service;
+    private final AuthScope authScope;
 
-    public BiologyController(BiologyService service) {
+    public BiologyController(BiologyService service, AuthScope authScope) {
         this.service = service;
+        this.authScope = authScope;
     }
 
     @GetMapping("/summary")
@@ -31,8 +35,9 @@ public class BiologyController {
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) Long districtId,
             @RequestParam(required = false) Long siteId) {
+        Scope s = authScope.effective(regionId, districtId, siteId);
         int safe = Math.max(1, Math.min(60, months));
-        return service.summary(safe, regionId, districtId, siteId);
+        return service.summary(safe, s.regionId(), s.districtId(), s.siteId());
     }
 
     @GetMapping("/exams")
@@ -46,8 +51,9 @@ public class BiologyController {
             @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
+        Scope s = authScope.effective(regionId, districtId, siteId);
         return service.exams(test, Math.max(1, Math.min(60, months)),
-                regionId, districtId, siteId, sort, dir, page, size);
+                s.regionId(), s.districtId(), s.siteId(), sort, dir, page, size);
     }
 
     /** CSV export. Caps at 5,000 rows to keep memory bounded. */
@@ -61,8 +67,9 @@ public class BiologyController {
             HttpServletResponse response) throws IOException {
 
         int safeMonths = Math.max(1, Math.min(60, months));
+        Scope s = authScope.effective(regionId, districtId, siteId);
         ExamPage page = service.exams(test, safeMonths,
-                regionId, districtId, siteId, null, null, 0, 5000);
+                s.regionId(), s.districtId(), s.siteId(), null, null, 0, 5000);
 
         String filename = "biology-" + (test == null ? "all" : test) + "-" + safeMonths + "m.csv";
         response.setContentType("text/csv;charset=UTF-8");

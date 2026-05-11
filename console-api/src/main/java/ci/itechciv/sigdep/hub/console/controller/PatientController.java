@@ -1,5 +1,7 @@
 package ci.itechciv.sigdep.hub.console.controller;
 
+import ci.itechciv.sigdep.hub.console.security.AuthScope;
+import ci.itechciv.sigdep.hub.console.security.AuthScope.Scope;
 import ci.itechciv.sigdep.hub.domain.service.PatientQueryService;
 import ci.itechciv.sigdep.hub.domain.service.PatientQueryService.EncounterDay;
 import ci.itechciv.sigdep.hub.domain.service.PatientQueryService.PatientDetail;
@@ -20,13 +22,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/patients")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','ANALYST','AUDITOR')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','DISTRICT_COORD','SITE_USER','ANALYST','AUDITOR')")
 public class PatientController {
 
     private final PatientQueryService service;
+    private final AuthScope authScope;
 
-    public PatientController(PatientQueryService service) {
+    public PatientController(PatientQueryService service, AuthScope authScope) {
         this.service = service;
+        this.authScope = authScope;
     }
 
     @GetMapping
@@ -39,18 +43,28 @@ public class PatientController {
             @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size) {
-        return service.list(q, regionId, districtId, siteId, sort, dir, page, size);
+        Scope s = authScope.effective(regionId, districtId, siteId);
+        return service.list(q, s.regionId(), s.districtId(), s.siteId(), sort, dir, page, size);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<PatientDetail> get(@PathVariable long id) {
         PatientDetail detail = service.get(id);
-        return detail == null ? ResponseEntity.notFound().build()
-                              : ResponseEntity.ok(detail);
+        if (detail == null) return ResponseEntity.notFound().build();
+        Scope s = authScope.effective(null, null, null);
+        if (!service.isVisibleTo(id, s.regionId(), s.districtId(), s.siteId())) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(detail);
     }
 
     @GetMapping("/{id}/encounters")
     public List<EncounterDay> encounters(@PathVariable long id) {
+        Scope s = authScope.effective(null, null, null);
+        if (!service.isVisibleTo(id, s.regionId(), s.districtId(), s.siteId())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN);
+        }
         return service.encounters(id);
     }
 
@@ -63,7 +77,8 @@ public class PatientController {
             @RequestParam(required = false) Long siteId,
             HttpServletResponse response) throws IOException {
 
-        PatientPage page = service.list(q, regionId, districtId, siteId, null, null, 0, 5000);
+        Scope s = authScope.effective(regionId, districtId, siteId);
+        PatientPage page = service.list(q, s.regionId(), s.districtId(), s.siteId(), null, null, 0, 5000);
 
         String filename = "patients.csv";
         response.setContentType("text/csv;charset=UTF-8");

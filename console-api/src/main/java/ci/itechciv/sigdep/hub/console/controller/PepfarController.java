@@ -1,5 +1,7 @@
 package ci.itechciv.sigdep.hub.console.controller;
 
+import ci.itechciv.sigdep.hub.console.security.AuthScope;
+import ci.itechciv.sigdep.hub.console.security.AuthScope.Scope;
 import ci.itechciv.sigdep.hub.domain.service.PepfarService;
 import ci.itechciv.sigdep.hub.domain.service.PepfarService.DisaggCell;
 import ci.itechciv.sigdep.hub.domain.service.PepfarService.PepfarReport;
@@ -15,13 +17,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/pepfar")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','ANALYST','AUDITOR')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','DISTRICT_COORD','SITE_USER','ANALYST','AUDITOR')")
 public class PepfarController {
 
     private final PepfarService service;
+    private final AuthScope authScope;
 
-    public PepfarController(PepfarService service) {
+    public PepfarController(PepfarService service, AuthScope authScope) {
         this.service = service;
+        this.authScope = authScope;
     }
 
     @GetMapping("/report")
@@ -31,7 +35,8 @@ public class PepfarController {
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) Long districtId,
             @RequestParam(required = false) Long siteId) {
-        return service.report(fy, q, regionId, districtId, siteId);
+        Scope s = authScope.effective(regionId, districtId, siteId);
+        return service.report(fy, q, s.regionId(), s.districtId(), s.siteId());
     }
 
     @GetMapping(value = "/report.csv", produces = "text/csv;charset=UTF-8")
@@ -43,13 +48,14 @@ public class PepfarController {
             @RequestParam(required = false) Long siteId,
             HttpServletResponse response) throws IOException {
 
-        PepfarReport r = service.report(fy, q, regionId, districtId, siteId);
+        Scope s = authScope.effective(regionId, districtId, siteId);
+        PepfarReport r = service.report(fy, q, s.regionId(), s.districtId(), s.siteId());
 
         String scopeSuffix;
-        if (siteId != null)          scopeSuffix = "-site" + siteId;
-        else if (districtId != null) scopeSuffix = "-district" + districtId;
-        else if (regionId != null)   scopeSuffix = "-region" + regionId;
-        else                         scopeSuffix = "";
+        if (s.siteId() != null)          scopeSuffix = "-site" + s.siteId();
+        else if (s.districtId() != null) scopeSuffix = "-district" + s.districtId();
+        else if (s.regionId() != null)   scopeSuffix = "-region" + s.regionId();
+        else                             scopeSuffix = "";
         String filename = "pepfar-FY" + fy + "Q" + q + scopeSuffix + ".csv";
         response.setContentType("text/csv;charset=UTF-8");
         response.setCharacterEncoding("UTF-8");

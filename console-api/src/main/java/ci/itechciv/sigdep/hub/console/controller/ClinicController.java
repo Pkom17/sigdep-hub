@@ -1,5 +1,7 @@
 package ci.itechciv.sigdep.hub.console.controller;
 
+import ci.itechciv.sigdep.hub.console.security.AuthScope;
+import ci.itechciv.sigdep.hub.console.security.AuthScope.Scope;
 import ci.itechciv.sigdep.hub.domain.service.ClinicService;
 import ci.itechciv.sigdep.hub.domain.service.ClinicService.ClinicSummary;
 import ci.itechciv.sigdep.hub.domain.service.ClinicService.VisitPage;
@@ -16,13 +18,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/clinic")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','ANALYST','AUDITOR')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','DISTRICT_COORD','SITE_USER','ANALYST','AUDITOR')")
 public class ClinicController {
 
     private final ClinicService service;
+    private final AuthScope authScope;
 
-    public ClinicController(ClinicService service) {
+    public ClinicController(ClinicService service, AuthScope authScope) {
         this.service = service;
+        this.authScope = authScope;
     }
 
     @GetMapping("/summary")
@@ -31,8 +35,9 @@ public class ClinicController {
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) Long districtId,
             @RequestParam(required = false) Long siteId) {
+        Scope s = authScope.effective(regionId, districtId, siteId);
         return service.summary(Math.max(1, Math.min(120, months)),
-                regionId, districtId, siteId);
+                s.regionId(), s.districtId(), s.siteId());
     }
 
     @GetMapping("/visits")
@@ -45,8 +50,9 @@ public class ClinicController {
             @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
+        Scope s = authScope.effective(regionId, districtId, siteId);
         return service.visits(Math.max(1, Math.min(120, months)),
-                regionId, districtId, siteId, sort, dir, page, size);
+                s.regionId(), s.districtId(), s.siteId(), sort, dir, page, size);
     }
 
     @GetMapping(value = "/visits.csv", produces = "text/csv;charset=UTF-8")
@@ -58,7 +64,9 @@ public class ClinicController {
             HttpServletResponse response) throws IOException {
 
         int safeMonths = Math.max(1, Math.min(120, months));
-        VisitPage page = service.visits(safeMonths, regionId, districtId, siteId, null, null, 0, 5000);
+        Scope s = authScope.effective(regionId, districtId, siteId);
+        VisitPage page = service.visits(safeMonths, s.regionId(), s.districtId(), s.siteId(),
+                null, null, 0, 5000);
 
         String filename = "clinique-" + safeMonths + "m.csv";
         response.setContentType("text/csv;charset=UTF-8");

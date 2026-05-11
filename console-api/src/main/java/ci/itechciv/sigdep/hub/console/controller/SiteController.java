@@ -1,5 +1,7 @@
 package ci.itechciv.sigdep.hub.console.controller;
 
+import ci.itechciv.sigdep.hub.console.security.AuthScope;
+import ci.itechciv.sigdep.hub.console.security.AuthScope.Scope;
 import ci.itechciv.sigdep.hub.domain.service.SiteQueryService;
 import ci.itechciv.sigdep.hub.domain.service.SiteQueryService.DistrictRef;
 import ci.itechciv.sigdep.hub.domain.service.SiteQueryService.RegionRef;
@@ -14,13 +16,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/sites")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','ANALYST','AUDITOR')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','DISTRICT_COORD','SITE_USER','ANALYST','AUDITOR')")
 public class SiteController {
 
     private final SiteQueryService service;
+    private final AuthScope authScope;
 
-    public SiteController(SiteQueryService service) {
+    public SiteController(SiteQueryService service, AuthScope authScope) {
         this.service = service;
+        this.authScope = authScope;
     }
 
     @GetMapping
@@ -34,7 +38,8 @@ public class SiteController {
             @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return service.list(q, status, regionId, districtId, siteId, sort, dir, page, size);
+        Scope s = authScope.effective(regionId, districtId, siteId);
+        return service.list(q, status, s.regionId(), s.districtId(), s.siteId(), sort, dir, page, size);
     }
 
     @GetMapping("/regions")

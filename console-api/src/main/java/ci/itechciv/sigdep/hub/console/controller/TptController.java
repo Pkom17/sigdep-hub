@@ -1,5 +1,7 @@
 package ci.itechciv.sigdep.hub.console.controller;
 
+import ci.itechciv.sigdep.hub.console.security.AuthScope;
+import ci.itechciv.sigdep.hub.console.security.AuthScope.Scope;
 import ci.itechciv.sigdep.hub.domain.service.TptService;
 import ci.itechciv.sigdep.hub.domain.service.TptService.RecordPage;
 import ci.itechciv.sigdep.hub.domain.service.TptService.TptRecord;
@@ -16,13 +18,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/tpt")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','ANALYST','AUDITOR')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','DISTRICT_COORD','SITE_USER','ANALYST','AUDITOR')")
 public class TptController {
 
     private final TptService service;
+    private final AuthScope authScope;
 
-    public TptController(TptService service) {
+    public TptController(TptService service, AuthScope authScope) {
         this.service = service;
+        this.authScope = authScope;
     }
 
     @GetMapping("/summary")
@@ -31,8 +35,9 @@ public class TptController {
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) Long districtId,
             @RequestParam(required = false) Long siteId) {
+        Scope s = authScope.effective(regionId, districtId, siteId);
         int safe = Math.max(1, Math.min(120, months));
-        return service.summary(safe, regionId, districtId, siteId);
+        return service.summary(safe, s.regionId(), s.districtId(), s.siteId());
     }
 
     @GetMapping("/records")
@@ -45,8 +50,9 @@ public class TptController {
             @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
+        Scope s = authScope.effective(regionId, districtId, siteId);
         return service.records(Math.max(1, Math.min(120, months)),
-                regionId, districtId, siteId, sort, dir, page, size);
+                s.regionId(), s.districtId(), s.siteId(), sort, dir, page, size);
     }
 
     @GetMapping(value = "/records.csv", produces = "text/csv;charset=UTF-8")
@@ -58,8 +64,9 @@ public class TptController {
             HttpServletResponse response) throws IOException {
 
         int safeMonths = Math.max(1, Math.min(120, months));
+        Scope s = authScope.effective(regionId, districtId, siteId);
         RecordPage page = service.records(safeMonths,
-                regionId, districtId, siteId, null, null, 0, 5000);
+                s.regionId(), s.districtId(), s.siteId(), null, null, 0, 5000);
 
         String filename = "tpt-" + safeMonths + "m.csv";
         response.setContentType("text/csv;charset=UTF-8");

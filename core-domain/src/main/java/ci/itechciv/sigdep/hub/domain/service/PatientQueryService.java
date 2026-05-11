@@ -150,6 +150,35 @@ public class PatientQueryService {
             int size
     ) {}
 
+    /**
+     * True if the patient is within the supplied geo scope. Returns true when
+     * no scope constraint is active (national-level user), and false on a
+     * voided/missing patient.
+     */
+    public boolean isVisibleTo(long patientId, Long regionId, Long districtId, Long siteId) {
+        if (regionId == null && districtId == null && siteId == null) return true;
+        StringBuilder sql = new StringBuilder(
+                "SELECT count(*) FROM core.patients p"
+              + " JOIN core.sites s ON s.id = p.site_id");
+        java.util.List<Object> args = new java.util.ArrayList<>();
+        if (regionId != null) {
+            sql.append(" JOIN core.districts d ON d.id = s.district_id AND d.region_id = ?");
+            args.add(regionId);
+        }
+        sql.append(" WHERE p.id = ? AND p.voided = FALSE");
+        args.add(patientId);
+        if (siteId != null) {
+            sql.append(" AND s.id = ?");
+            args.add(siteId);
+        }
+        if (districtId != null) {
+            sql.append(" AND s.district_id = ?");
+            args.add(districtId);
+        }
+        Long n = jdbc.queryForObject(sql.toString(), Long.class, args.toArray());
+        return n != null && n > 0;
+    }
+
     public PatientDetail get(long id) {
         List<PatientDetail> rows = jdbc.query(
                 """

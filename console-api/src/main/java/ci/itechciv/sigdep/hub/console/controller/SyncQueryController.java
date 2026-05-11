@@ -1,5 +1,7 @@
 package ci.itechciv.sigdep.hub.console.controller;
 
+import ci.itechciv.sigdep.hub.console.security.AuthScope;
+import ci.itechciv.sigdep.hub.console.security.AuthScope.Scope;
 import ci.itechciv.sigdep.hub.domain.service.SyncQueryService;
 import ci.itechciv.sigdep.hub.domain.service.SyncQueryService.BatchPage;
 import ci.itechciv.sigdep.hub.domain.service.SyncQueryService.DailyVolume;
@@ -19,13 +21,15 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/sync")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','AUDITOR')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','DISTRICT_COORD','SITE_USER','AUDITOR')")
 public class SyncQueryController {
 
     private final SyncQueryService service;
+    private final AuthScope authScope;
 
-    public SyncQueryController(SyncQueryService service) {
+    public SyncQueryController(SyncQueryService service, AuthScope authScope) {
         this.service = service;
+        this.authScope = authScope;
     }
 
     @GetMapping("/summary")
@@ -33,7 +37,8 @@ public class SyncQueryController {
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) Long districtId,
             @RequestParam(required = false) Long siteId) {
-        return service.summary(regionId, districtId, siteId);
+        Scope s = authScope.effective(regionId, districtId, siteId);
+        return service.summary(s.regionId(), s.districtId(), s.siteId());
     }
 
     @GetMapping("/daily")
@@ -42,7 +47,8 @@ public class SyncQueryController {
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) Long districtId,
             @RequestParam(required = false) Long siteId) {
-        return service.daily(days, regionId, districtId, siteId);
+        Scope s = authScope.effective(regionId, districtId, siteId);
+        return service.daily(days, s.regionId(), s.districtId(), s.siteId());
     }
 
     @GetMapping("/batches")
@@ -56,7 +62,8 @@ public class SyncQueryController {
             @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return service.batches(regionId, districtId, siteId,
+        Scope s = authScope.effective(regionId, districtId, siteId);
+        return service.batches(s.regionId(), s.districtId(), s.siteId(),
                 entityType, status, sort, dir, page, size);
     }
 
@@ -70,7 +77,8 @@ public class SyncQueryController {
             @RequestParam(required = false) String dir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return service.lateSites(bucket, regionId, districtId, siteId,
+        Scope s = authScope.effective(regionId, districtId, siteId);
+        return service.lateSites(bucket, s.regionId(), s.districtId(), s.siteId(),
                 sort, dir, page, size);
     }
 }
