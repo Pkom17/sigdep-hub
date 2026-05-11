@@ -5,8 +5,10 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.RealmResource;
@@ -116,6 +118,7 @@ public class KeycloakAdminService {
         u.setLastName(req.lastName());
         u.setEnabled(req.enabled() == null || req.enabled());
         u.setEmailVerified(Boolean.TRUE.equals(req.emailVerified()));
+        applyScopeAttrs(u, req.regionId(), req.districtId(), req.siteId());
 
         try (Response resp = realm().users().create(u)) {
             if (resp.getStatus() != 201) {
@@ -152,6 +155,9 @@ public class KeycloakAdminService {
             if (req.lastName() != null)      u.setLastName(req.lastName());
             if (req.enabled() != null)       u.setEnabled(req.enabled());
             if (req.emailVerified() != null) u.setEmailVerified(req.emailVerified());
+            // Always apply scope attrs from the request — null clears them, so
+            // demoting a SITE_USER to NATIONAL_VIEWER properly drops the siteId.
+            applyScopeAttrs(u, req.regionId(), req.districtId(), req.siteId());
             ur.update(u);
 
             if (req.realmRoles() != null) applyRoles(id, req.realmRoles());
@@ -237,7 +243,10 @@ public class KeycloakAdminService {
                 u.getEmail(),
                 Boolean.TRUE.equals(u.isEnabled()),
                 Boolean.TRUE.equals(u.isEmailVerified()),
-                u.getCreatedTimestamp());
+                u.getCreatedTimestamp(),
+                attrAsLong(u, "regionId"),
+                attrAsLong(u, "districtId"),
+                attrAsLong(u, "siteId"));
     }
 
     private static UserDetail toDetail(UserRepresentation u, List<String> roles) {
@@ -250,7 +259,46 @@ public class KeycloakAdminService {
                 Boolean.TRUE.equals(u.isEnabled()),
                 Boolean.TRUE.equals(u.isEmailVerified()),
                 u.getCreatedTimestamp(),
-                roles == null ? Collections.emptyList() : roles);
+                roles == null ? Collections.emptyList() : roles,
+                attrAsLong(u, "regionId"),
+                attrAsLong(u, "districtId"),
+                attrAsLong(u, "siteId"));
+    }
+
+    /**
+     * Read a single Keycloak user attribute as Long. Keycloak stores attributes
+     * as List&lt;String&gt; per key; we take the first non-blank entry.
+     */
+    private static Long attrAsLong(UserRepresentation u, String key) {
+        Map<String, List<String>> attrs = u.getAttributes();
+        if (attrs == null) return null;
+        List<String> v = attrs.get(key);
+        if (v == null || v.isEmpty()) return null;
+        String first = v.get(0);
+        if (first == null || first.isBlank()) return null;
+        try { return Long.parseLong(first.trim()); }
+        catch (NumberFormatException ex) { return null; }
+    }
+
+    /**
+     * Apply regionId/districtId/siteId to the UserRepresentation as
+     * single-valued string attributes. Null clears the attribute.
+     */
+    private static void applyScopeAttrs(UserRepresentation u,
+                                        Long regionId, Long districtId, Long siteId) {
+        Map<String, List<String>> attrs = u.getAttributes();
+        if (attrs == null) {
+            attrs = new HashMap<>();
+            u.setAttributes(attrs);
+        }
+        setOrRemove(attrs, "regionId",   regionId);
+        setOrRemove(attrs, "districtId", districtId);
+        setOrRemove(attrs, "siteId",     siteId);
+    }
+
+    private static void setOrRemove(Map<String, List<String>> attrs, String key, Long value) {
+        if (value == null) attrs.remove(key);
+        else attrs.put(key, List.of(String.valueOf(value)));
     }
 
     private static ResponseStatusException rethrow(WebApplicationException ex) {
@@ -273,7 +321,10 @@ public class KeycloakAdminService {
             String email,
             boolean enabled,
             boolean emailVerified,
-            Long createdAt
+            Long createdAt,
+            Long regionId,
+            Long districtId,
+            Long siteId
     ) {}
 
     public record UserPage(List<UserRow> content, long total, int page, int size) {}
@@ -287,7 +338,10 @@ public class KeycloakAdminService {
             boolean enabled,
             boolean emailVerified,
             Long createdAt,
-            List<String> realmRoles
+            List<String> realmRoles,
+            Long regionId,
+            Long districtId,
+            Long siteId
     ) {}
 
     public record CreateUserRequest(
@@ -299,7 +353,10 @@ public class KeycloakAdminService {
             Boolean emailVerified,
             String password,
             Boolean passwordTemporary,
-            List<String> realmRoles
+            List<String> realmRoles,
+            Long regionId,
+            Long districtId,
+            Long siteId
     ) {}
 
     public record UpdateUserRequest(
@@ -308,7 +365,10 @@ public class KeycloakAdminService {
             String lastName,
             Boolean enabled,
             Boolean emailVerified,
-            List<String> realmRoles
+            List<String> realmRoles,
+            Long regionId,
+            Long districtId,
+            Long siteId
     ) {}
 
     public record ResetPasswordRequest(String password, boolean temporary) {}

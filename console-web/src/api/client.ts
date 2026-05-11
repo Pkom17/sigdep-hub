@@ -587,6 +587,9 @@ export type UserRow = {
   enabled: boolean;
   emailVerified: boolean;
   createdAt: number | null;
+  regionId: number | null;
+  districtId: number | null;
+  siteId: number | null;
 };
 
 export type UserPage = {
@@ -608,6 +611,9 @@ export type CreateUserRequest = {
   password?: string;
   passwordTemporary?: boolean;
   realmRoles?: string[];
+  regionId?: number | null;
+  districtId?: number | null;
+  siteId?: number | null;
 };
 
 export type UpdateUserRequest = {
@@ -617,6 +623,9 @@ export type UpdateUserRequest = {
   enabled?: boolean;
   emailVerified?: boolean;
   realmRoles?: string[];
+  regionId?: number | null;
+  districtId?: number | null;
+  siteId?: number | null;
 };
 
 export function fetchUsers(opts: { q?: string; page?: number; size?: number }) {
