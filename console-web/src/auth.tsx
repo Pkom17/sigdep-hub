@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { AuthProvider, useAuth } from 'react-oidc-context';
-import { useLocation } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { WebStorageStateStore } from 'oidc-client-ts';
 
 const AUTHORITY = import.meta.env.VITE_OIDC_AUTHORITY
@@ -40,12 +40,12 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     );
   }
 
+  // Any auth error (network blip, OIDC discovery 404, refresh-token gone) on
+  // a protected route — bounce back to the landing. Showing a red error
+  // message there would just trap the user; the landing offers a clear way
+  // to sign in again.
   if (auth.error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-rose-600 text-sm">
-        Erreur d’authentification : {auth.error.message}
-      </div>
-    );
+    return <Navigate to="/" replace />;
   }
 
   if (!auth.isAuthenticated) {
