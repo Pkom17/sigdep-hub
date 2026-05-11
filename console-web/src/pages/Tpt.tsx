@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import {
   Bar, BarChart, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
+import { BookOpenCheck, Download } from 'lucide-react';
 import {
   downloadTptCsv, fetchTptRecords, fetchTptSummary,
 } from '../api/client';
@@ -56,6 +57,7 @@ export function Tpt() {
   return (
     <div className="px-6 py-6">
       <PageHeader
+        icon={BookOpenCheck}
         title="TPT"
         subtitle="Thérapie préventive de la tuberculose"
         right={<>
@@ -71,7 +73,9 @@ export function Tpt() {
           <button
             onClick={handleExport}
             disabled={exporting || !records.data || records.data.total === 0}
-            className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50">
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-xs
+                       hover:bg-slate-50 disabled:opacity-50 transition">
+            <Download className="h-3.5 w-3.5" />
             {exporting ? 'Export…' : 'Exporter CSV'}
           </button>
         </>} />

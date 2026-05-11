@@ -6,6 +6,7 @@ import {
   downloadPepfarCsv,
   fetchPepfarReport,
 } from "../api/client";
+import { BarChart3, Download } from "lucide-react";
 import { Kpi, formatInt, formatPercent } from "../components/Kpi";
 import { PageHeader } from "../components/PageHeader";
 import { GeoFilter, GeoScope } from "../components/GeoFilter";
@@ -95,6 +96,7 @@ export function Pepfar() {
   return (
     <div className="px-6 py-6">
       <PageHeader
+        icon={BarChart3}
         title="Indicateurs PEPFAR"
         subtitle={<>
           TX_NEW · TX_CURR · TX_PVLS · Trimestre Fiscal PEPFAR
@@ -124,8 +126,10 @@ export function Pepfar() {
           <button
             onClick={handleExport}
             disabled={exporting || !report.data}
-            className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-xs
+                       hover:bg-slate-50 disabled:opacity-50 transition"
           >
+            <Download className="h-3.5 w-3.5" />
             {exporting ? "Export…" : "Exporter CSV"}
           </button>
         </>} />

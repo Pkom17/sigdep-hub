@@ -8,6 +8,7 @@ import {
   BatchRow, LateBucket, LateSiteRow,
   fetchSyncBatches, fetchSyncDaily, fetchSyncLateSites, fetchSyncSummary,
 } from '../api/client';
+import { RefreshCcw } from 'lucide-react';
 import { Kpi, formatInt } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
 import { GeoFilter, GeoScope } from '../components/GeoFilter';
@@ -89,13 +90,13 @@ export function Synchronisation() {
   return (
     <div className="px-6 py-6">
       <PageHeader
+        icon={RefreshCcw}
+        tone="admin"
         title="Synchronisation"
         subtitle={summary.data
           ? `${formatInt(summary.data.sitesTotal)} sites · dernier batch ${relativeAge(summary.data.lastBatchAt)}`
           : 'Chargement…'}
-        right={<>
-          <GeoFilter value={scope} onChange={setScope} />
-        </>} />
+        right={<GeoFilter value={scope} onChange={setScope} />} />
 
       {/* KPIs */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">

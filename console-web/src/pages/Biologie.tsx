@@ -19,6 +19,7 @@ import {
   fetchBiologyExams,
   fetchBiologySummary,
 } from "../api/client";
+import { Download, Microscope } from "lucide-react";
 import { CardHeader } from "../components/CardHeader";
 import { GeoFilter, GeoScope } from "../components/GeoFilter";
 import { Kpi, formatInt, formatPercent } from "../components/Kpi";
@@ -104,6 +105,7 @@ export function Biologie() {
   return (
     <div className="px-6 py-6">
       <PageHeader
+        icon={Microscope}
         title="Biologie"
         subtitle="Examens biologiques · charge virale & CD4"
         right={
@@ -292,8 +294,10 @@ export function Biologie() {
             <button
               onClick={handleExport}
               disabled={exporting || !exams.data || exams.data.total === 0}
-              className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-xs
+                         hover:bg-slate-50 disabled:opacity-50 transition"
             >
+              <Download className="h-3.5 w-3.5" />
               {exporting ? "Export…" : "Exporter CSV"}
             </button>
           </div>

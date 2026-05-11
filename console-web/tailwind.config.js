@@ -22,6 +22,17 @@ export default {
           800: '#005f54',
           900: '#003e36',
         },
+        // Secondary accent (indigo) for admin-side surfaces; contrasts
+        // cleanly with the sigdep teal so the two roles never blur.
+        accent: {
+          50:  '#eef2ff',
+          100: '#e0e7ff',
+          200: '#c7d2fe',
+          500: '#6366f1',
+          600: '#4f46e5',
+          700: '#4338ca',
+          800: '#3730a3',
+        },
         ink: {
           DEFAULT: '#1f2937', // slate-800
           muted:   '#6b7280', // slate-500
@@ -30,6 +41,7 @@ export default {
       },
       boxShadow: {
         card: '0 1px 2px 0 rgb(0 0 0 / 0.05), 0 1px 3px 0 rgb(0 0 0 / 0.05)',
+        elevated: '0 4px 12px -2px rgb(15 23 42 / 0.08), 0 2px 4px -2px rgb(15 23 42 / 0.06)',
       },
     },
   },

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, Download, Search, Users } from 'lucide-react';
 import { downloadPatientsCsv, fetchPatients } from '../api/client';
 import { formatInt } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
@@ -52,22 +53,28 @@ export function Patients() {
   return (
     <div className="px-6 py-6">
       <PageHeader
+        icon={Users}
         title="Patients"
         subtitle={data ? `${formatInt(data.total)} patients` : 'Chargement…'}
         right={<>
           <GeoFilter value={scope} onChange={s => { setScope(s); setPage(0); }} />
-          <input
-            type="search"
-            value={query}
-            onChange={e => { setQuery(e.target.value); setPage(0); }}
-            placeholder="Rechercher (UUID, identifiant)…"
-            className="w-72 rounded-md border border-slate-300 px-3 py-2 text-sm
-                       focus:outline-none focus:border-sigdep-500 focus:ring-1 focus:ring-sigdep-500"
-          />
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-subtle pointer-events-none" />
+            <input
+              type="search"
+              value={query}
+              onChange={e => { setQuery(e.target.value); setPage(0); }}
+              placeholder="Rechercher (UUID, identifiant)…"
+              className="w-72 rounded-md border border-slate-300 pl-8 pr-3 py-2 text-sm
+                         focus:outline-none focus:border-sigdep-500 focus:ring-1 focus:ring-sigdep-500"
+            />
+          </div>
           <button
             onClick={handleExport}
             disabled={exporting || !data || data.total === 0}
-            className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50">
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-xs
+                       hover:bg-slate-50 disabled:opacity-50 transition">
+            <Download className="h-3.5 w-3.5" />
             {exporting ? 'Export…' : 'Exporter CSV'}
           </button>
         </>} />
@@ -127,14 +134,18 @@ export function Patients() {
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={data.page === 0}
-              className="px-3 py-1 rounded border border-slate-300 disabled:opacity-50 hover:bg-slate-50">
+              className="inline-flex items-center gap-1 px-3 py-1 rounded border border-slate-300
+                         disabled:opacity-50 hover:bg-slate-50 transition">
+              <ChevronLeft className="h-3.5 w-3.5" />
               Précédent
             </button>
             <button
               onClick={() => setPage(p => p + 1)}
               disabled={data.page + 1 >= totalPages}
-              className="px-3 py-1 rounded border border-slate-300 disabled:opacity-50 hover:bg-slate-50">
+              className="inline-flex items-center gap-1 px-3 py-1 rounded border border-slate-300
+                         disabled:opacity-50 hover:bg-slate-50 transition">
               Suivant
+              <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>

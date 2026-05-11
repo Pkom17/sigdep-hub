@@ -5,6 +5,7 @@ import {
   createUser, fetchDistricts, fetchRegions, fetchSitesOf, fetchUser,
   fetchUserRoles, fetchUsers, resetUserPassword, setUserEnabled, updateUser,
 } from '../api/client';
+import { Search, ShieldCheck, UserPlus } from 'lucide-react';
 import { formatInt } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
 
@@ -78,20 +79,27 @@ export function Utilisateurs() {
   return (
     <div className="px-6 py-6">
       <PageHeader
+        icon={ShieldCheck}
+        tone="admin"
         title="Utilisateurs"
         subtitle={users.data ? `${formatInt(users.data.total)} comptes Keycloak` : 'Chargement…'}
         right={<>
-          <input
-            type="search"
-            value={query}
-            onChange={e => { setQuery(e.target.value); setPage(0); }}
-            placeholder="Rechercher (nom, email)…"
-            className="w-72 rounded-md border border-slate-300 px-3 py-2 text-sm
-                       focus:outline-none focus:border-sigdep-500 focus:ring-1 focus:ring-sigdep-500"
-          />
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-subtle pointer-events-none" />
+            <input
+              type="search"
+              value={query}
+              onChange={e => { setQuery(e.target.value); setPage(0); }}
+              placeholder="Rechercher (nom, email)…"
+              className="w-72 rounded-md border border-slate-300 pl-8 pr-3 py-2 text-sm
+                         focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500"
+            />
+          </div>
           <button
             onClick={() => setModal({ kind: 'create' })}
-            className="rounded-md bg-sigdep-600 hover:bg-sigdep-700 text-white px-3 py-2 text-sm">
+            className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 hover:bg-accent-700
+                       text-white px-3 py-2 text-sm transition">
+            <UserPlus className="h-4 w-4" />
             Nouvel utilisateur
           </button>
         </>} />

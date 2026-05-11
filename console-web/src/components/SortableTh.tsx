@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 
 export type SortState = { key: string; dir: 'asc' | 'desc' } | null;
 
@@ -23,7 +24,6 @@ export function SortableTh({
   children: ReactNode;
 }>) {
   const active = sort?.key === k ? sort.dir : null;
-  const indicator = active === 'asc' ? '▲' : active === 'desc' ? '▼' : '';
 
   function next(): SortState {
     if (active === null) return { key: k, dir: 'asc' };
@@ -32,20 +32,22 @@ export function SortableTh({
   }
 
   const justify = align === 'right' ? 'justify-end' : 'justify-start';
+  const Icon = active === 'asc' ? ArrowUp : active === 'desc' ? ArrowDown : ArrowUpDown;
 
   return (
     <th className={`px-4 py-2 font-medium ${align === 'right' ? 'text-right' : 'text-left'}`}>
       <button
         type="button"
         onClick={() => onSort(next())}
-        className={`flex items-center gap-1 ${justify} w-full hover:text-sigdep-700`}
+        className={`group flex items-center gap-1.5 ${justify} w-full
+                    hover:text-sigdep-700 transition-colors`}
       >
         <span>{children}</span>
-        <span
-          className={`text-[10px] ${active ? 'text-sigdep-600' : 'text-slate-400'}`}
-        >
-          {indicator || '⇅'}
-        </span>
+        <Icon
+          className={`h-3 w-3 transition-opacity
+                      ${active ? 'text-sigdep-600 opacity-100'
+                              : 'text-slate-400 opacity-40 group-hover:opacity-100'}`}
+        />
       </button>
     </th>
   );

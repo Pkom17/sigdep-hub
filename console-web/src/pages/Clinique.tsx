@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Download, Stethoscope } from "lucide-react";
 import {
   downloadClinicCsv,
   fetchClinicSummary,
@@ -79,6 +80,7 @@ export function Clinique() {
   return (
     <div className="px-6 py-6">
       <PageHeader
+        icon={Stethoscope}
         title="Suivi clinique"
         subtitle="Visites de suivi PEC · stades OMS, dépistage TB, régimes ARV"
         right={<>
@@ -98,8 +100,10 @@ export function Clinique() {
           <button
             onClick={handleExport}
             disabled={exporting || !visits.data || visits.data.total === 0}
-            className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-xs
+                       hover:bg-slate-50 disabled:opacity-50 transition"
           >
+            <Download className="h-3.5 w-3.5" />
             {exporting ? "Export…" : "Exporter CSV"}
           </button>
         </>} />

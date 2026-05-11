@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Building2, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { fetchSites, SiteStatus } from '../api/client';
 import { formatInt } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
 import { GeoFilter, GeoScope } from '../components/GeoFilter';
 import { SortableTh, SortState } from '../components/SortableTh';
+import { StatusBadge, type BadgeTone } from '../components/StatusBadge';
 
 const STATUS_TABS: { value: SiteStatus; label: string }[] = [
   { value: 'all',     label: 'Tous' },
@@ -13,17 +15,12 @@ const STATUS_TABS: { value: SiteStatus; label: string }[] = [
   { value: 'offline', label: 'Hors ligne (> 7j)' },
 ];
 
-function syncBadge(iso: string | null): { label: string; tone: string } {
-  if (!iso) return { label: 'Jamais', tone: 'bg-slate-100 text-slate-600' };
-  const d = new Date(iso).getTime();
-  const ageHours = (Date.now() - d) / 36e5;
-  if (ageHours < 24) {
-    return { label: formatRelative(ageHours), tone: 'bg-emerald-50 text-emerald-700' };
-  }
-  if (ageHours < 24 * 7) {
-    return { label: formatRelative(ageHours), tone: 'bg-amber-50 text-amber-700' };
-  }
-  return { label: formatRelative(ageHours), tone: 'bg-rose-50 text-rose-700' };
+function syncBadge(iso: string | null): { label: string; tone: BadgeTone } {
+  if (!iso) return { label: 'Jamais', tone: 'neutral' };
+  const ageHours = (Date.now() - new Date(iso).getTime()) / 36e5;
+  if (ageHours < 24)     return { label: formatRelative(ageHours), tone: 'ok' };
+  if (ageHours < 24 * 7) return { label: formatRelative(ageHours), tone: 'warning' };
+  return { label: formatRelative(ageHours), tone: 'danger' };
 }
 
 function formatRelative(ageHours: number): string {
@@ -33,10 +30,10 @@ function formatRelative(ageHours: number): string {
   return `il y a ${days} j`;
 }
 
-function sigdepBadge(flag: boolean | null): { label: string; tone: string } {
-  if (flag === true)  return { label: 'SIGDEP', tone: 'bg-sigdep-50 text-sigdep-700' };
-  if (flag === false) return { label: 'Hors SIGDEP', tone: 'bg-slate-100 text-slate-500' };
-  return { label: '?', tone: 'bg-slate-100 text-slate-400' };
+function sigdepBadge(flag: boolean | null): { label: string; tone: BadgeTone } {
+  if (flag === true)  return { label: 'SIGDEP',      tone: 'info' };
+  if (flag === false) return { label: 'Hors SIGDEP', tone: 'neutral' };
+  return { label: '?', tone: 'neutral' };
 }
 
 export function Sites() {
@@ -59,18 +56,22 @@ export function Sites() {
   return (
     <div className="px-6 py-6">
       <PageHeader
+        icon={Building2}
         title="Sites"
         subtitle={sites.data ? `${formatInt(sites.data.total)} sites` : 'Chargement…'}
         right={<>
           <GeoFilter value={scope} onChange={s => { setScope(s); setPage(0); }} />
-          <input
-            type="search"
-            value={query}
-            onChange={e => { setQuery(e.target.value); setPage(0); }}
-            placeholder="Rechercher (code ou nom)…"
-            className="w-72 rounded-md border border-slate-300 px-3 py-2 text-sm
-                       focus:outline-none focus:border-sigdep-500 focus:ring-1 focus:ring-sigdep-500"
-          />
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-subtle pointer-events-none" />
+            <input
+              type="search"
+              value={query}
+              onChange={e => { setQuery(e.target.value); setPage(0); }}
+              placeholder="Rechercher (code ou nom)…"
+              className="w-72 rounded-md border border-slate-300 pl-8 pr-3 py-2 text-sm
+                         focus:outline-none focus:border-sigdep-500 focus:ring-1 focus:ring-sigdep-500"
+            />
+          </div>
         </>} />
 
       {/* Status tabs */}
@@ -122,10 +123,10 @@ export function Sites() {
                   <td className="px-4 py-2 text-ink-muted">{s.facilityType ?? '—'}</td>
                   <td className="px-4 py-2 text-right tabular-nums">{formatInt(s.patientCount)}</td>
                   <td className="px-4 py-2">
-                    <span className={`text-xs px-2 py-0.5 rounded ${sb.tone}`}>{sb.label}</span>
+                    <StatusBadge tone={sb.tone}>{sb.label}</StatusBadge>
                   </td>
                   <td className="px-4 py-2">
-                    <span className={`text-xs px-2 py-0.5 rounded ${sg.tone}`}>{sg.label}</span>
+                    <StatusBadge tone={sg.tone}>{sg.label}</StatusBadge>
                   </td>
                 </tr>
               );
@@ -143,14 +144,18 @@ export function Sites() {
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={sites.data.page === 0}
-              className="px-3 py-1 rounded border border-slate-300 disabled:opacity-50 hover:bg-slate-50">
+              className="inline-flex items-center gap-1 px-3 py-1 rounded border border-slate-300
+                         disabled:opacity-50 hover:bg-slate-50 transition">
+              <ChevronLeft className="h-3.5 w-3.5" />
               Précédent
             </button>
             <button
               onClick={() => setPage(p => p + 1)}
               disabled={sites.data.page + 1 >= totalPages}
-              className="px-3 py-1 rounded border border-slate-300 disabled:opacity-50 hover:bg-slate-50">
+              className="inline-flex items-center gap-1 px-3 py-1 rounded border border-slate-300
+                         disabled:opacity-50 hover:bg-slate-50 transition">
               Suivant
+              <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
