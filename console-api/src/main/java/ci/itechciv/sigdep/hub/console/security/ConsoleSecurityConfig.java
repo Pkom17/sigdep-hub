@@ -30,7 +30,7 @@ public class ConsoleSecurityConfig {
      * so the only callers that need CORS are local dev (5173/8041) and any
      * staging hostname surfaced via {@code APP_CORS_ALLOWED_ORIGINS}.
      */
-    @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:8041,http://127.0.0.1:8041}")
+    @Value("${app.cors.allowed-origins:http://localhost:9000,http://127.0.0.1:9000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:8041,http://127.0.0.1:8041}")
     private String allowedOrigins;
 
     @Bean

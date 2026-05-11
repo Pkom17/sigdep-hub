@@ -3,8 +3,12 @@ import { AuthProvider, useAuth } from 'react-oidc-context';
 import { Navigate, useLocation } from 'react-router-dom';
 import { WebStorageStateStore } from 'oidc-client-ts';
 
+// Same-origin authority: the nginx reverse-proxy on :9000 forwards
+// /realms/* to Keycloak so the browser only ever talks to a single
+// origin. Set VITE_OIDC_AUTHORITY explicitly if you want to bypass the
+// proxy (e.g. point at a staging Keycloak directly).
 const AUTHORITY = import.meta.env.VITE_OIDC_AUTHORITY
-  ?? 'http://localhost:8180/realms/sigdep';
+  ?? `${window.location.origin}/realms/sigdep`;
 const CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID ?? 'sigdep-console';
 const REDIRECT_URI = window.location.origin + '/app';
 const POST_LOGOUT_URI = window.location.origin + '/';

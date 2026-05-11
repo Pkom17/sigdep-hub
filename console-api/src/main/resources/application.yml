@@ -17,10 +17,14 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/sigdep}
+          # The issuer claim in the JWT is whatever Keycloak's KC_HOSTNAME
+          # advertises, i.e. localhost:9000 in dev (via the nginx proxy).
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:9000/realms/sigdep}
 
 app:
   keycloak:
+    # The admin client talks to Keycloak directly (server-to-server, no
+    # proxy), so it stays on the container port 8180.
     server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8180}
     realm: ${KEYCLOAK_REALM:sigdep}
     admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:sigdep-console-admin}

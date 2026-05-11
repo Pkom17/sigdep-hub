@@ -5,6 +5,14 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    // Bind on 0.0.0.0 so the nginx container can reach the dev server via
+    // host.docker.internal:5173. Default (127.0.0.1) blocks that path.
+    host: true,
+    // Vite ≥ 5.4 rejects requests whose Host header isn't whitelisted.
+    // We accept localhost (the canonical dev origin) plus the bare
+    // upstream name "vite" as a fallback in case nginx slips and forwards
+    // its own upstream label.
+    allowedHosts: ['localhost', '127.0.0.1', 'vite'],
     proxy: {
       '/api': {
         target: process.env.CONSOLE_API_URL ?? 'http://localhost:8041',

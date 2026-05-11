@@ -21,7 +21,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/sigdep}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:9000/realms/sigdep}
 
 server:
   port: ${SERVER_PORT:8090}
