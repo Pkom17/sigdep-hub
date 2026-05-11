@@ -1,84 +1,120 @@
 # sigdep-hub
 
-Central server consolidating data from 550+ SIGDEP-3 sites. Maven multi-module.
+Central server consolidating HIV care data from 550+ SIGDEP-3 sites
+(programme national de lutte contre le sida, Côte d’Ivoire). It receives
+sync batches from edge agents running at each site, stores them in a single
+PostgreSQL database, computes PEPFAR / national indicators, and serves a
+React console for national, regional, district and site users.
+
+![SIGDEP-3 dashboard — authenticated view](docs/screenshots/overview.png)
+
+## Place in the SIGDEP-3 platform
+
+This repo is one of three projects that make up SIGDEP-3:
+
+| Project                                                            | Role                                                                   |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| [`sigdep-contracts`](https://github.com/ITECH-CI/sigdep-contracts) | Shared DTOs and API contracts (Maven library)                          |
+| [`sigdep-sync`](https://github.com/ITECH-CI/sigdep-sync)           | Edge agent deployed on each site — reads local OpenMRS, pushes batches |
+| **`sigdep-hub`** (this repo)                                       | Central server — receives batches, indicators, console                 |
+
+The agent on each site reads its local OpenMRS MySQL database, transforms
+the records into the canonical DTOs defined in `sigdep-contracts`, and
+POSTs them to `sigdep-hub`’s `ingestion-api`. The `console-api` then
+serves indicators and listings to authenticated users via the React SPA.
+
+```
+   ┌──────────────────┐                  ┌────────────── sigdep-hub ───────────────┐
+   │  site OpenMRS    │                  │                                          │
+   │  (MySQL, read)   │                  │   ingestion-api ──┐                      │
+   └────────┬─────────┘                  │                   ▼                      │
+            │   sigdep-sync agent        │            PostgreSQL                    │
+            │   (Java, SQLite buffer)    │                   ▲                      │
+            └──── HTTPS batches ─────────┼───►  console-api ─┘──► React console     │
+                                         └──────────────────────────────────────────┘
+```
 
 ## Modules
 
-| Module          | Description                                                         |
-|-----------------|---------------------------------------------------------------------|
-| `core-domain`   | JPA entities, repositories, domain services. Library, no `main()`.  |
-| `ingestion-api` | Spring Boot app on port `8090`. Receives sync batches from agents.  |
-| `console-api`   | Spring Boot app on port `8041`. UI endpoints + serves React build.  |
-| `console-web`   | React 18 + Vite frontend.                                           |
+| Module          | Description                                                        |
+| --------------- | ------------------------------------------------------------------ |
+| `core-domain`   | JPA entities, repositories, domain services. Library, no `main()`. |
+| `ingestion-api` | Spring Boot app on port `8090`. Receives sync batches from agents. |
+| `console-api`   | Spring Boot app on port `8041`. Console endpoints + serves SPA.    |
+| `console-web`   | React 18 + Vite + Tailwind frontend.                               |
+| `infra/`        | docker-compose for dev and prod, nginx configs, Keycloak realm.    |
 
-`infra/` holds Docker Compose for dev (Postgres + Keycloak) and the Keycloak
-realm import directory.
+Liquibase migrations are owned by `ingestion-api` (the only writer); the
+console runs with `spring.liquibase.enabled=false`.
 
-Liquibase migrations are owned by `ingestion-api` (it is the writer; the console
-runs with `spring.liquibase.enabled=false`).
+## Quickstart (dev)
 
-## Build
-
-```bash
-# Install sigdep-contracts first (sibling project)
-cd ../sigdep-contracts && mvn -DskipTests install
-
-# Build the hub
-cd ../sigdep-hub && mvn clean install
-```
-
-## Configuration
-
-Each Spring Boot module (`ingestion-api`, `console-api`) keeps its own `.env`
-at the module root. `spring-dotenv` loads it automatically at startup.
+Prerequisites: **JDK 17+**, **Maven 3.9+**, **Node 20+**, **Docker** with
+Compose v2. The whole stack runs locally on a laptop.
 
 ```bash
+# 1. Build the contracts artefact (sibling repo) into your local ~/.m2
+git clone https://github.com/ITECH-CI/sigdep-contracts
+cd sigdep-contracts && mvn -DskipTests install && cd ..
+
+# 2. Clone and build the hub
+git clone https://github.com/ITECH-CI/sigdep-hub
+cd sigdep-hub
+mvn -DskipTests install
+
+# 3. Start the infra (Postgres + Keycloak + nginx)
+cd infra && docker compose up -d && cd ..
+
+# 4. Apply the Keycloak userprofile (one-time, after the realm is imported)
+docker exec sigdep-keycloak /opt/keycloak/bin/kcadm.sh config credentials \
+  --server http://localhost:8080 --realm master --user admin --password admin
+docker cp infra/keycloak/extras/userprofile-sigdep.json \
+  sigdep-keycloak:/tmp/userprofile-sigdep.json
+docker exec sigdep-keycloak /opt/keycloak/bin/kcadm.sh update users/profile \
+  -r sigdep -f /tmp/userprofile-sigdep.json
+
+# 5. Bring up the three processes (three terminals)
 cp ingestion-api/.env.example ingestion-api/.env
 cp console-api/.env.example   console-api/.env
-# edit each file as needed
+
+(cd ingestion-api && ./run.sh --dev)             # port 8090, runs Liquibase
+(cd console-api    && ./run.sh --dev)            # port 8041
+(cd console-web    && npm install && npm run dev) # port 5173 (proxied)
 ```
 
-`.env` files are gitignored. `.env.example` files are the source of truth for
-the variables each module recognises.
+Open **http://localhost:9000** in your browser. Default users:
 
-## Dev environment
+| Username          | Password | Roles                                        |
+| ----------------- | -------- | -------------------------------------------- |
+| `pkomena`         | `sigdep` | `SUPER_ADMIN`, `IT_ADMIN`, `NATIONAL_VIEWER` |
+| `national-viewer` | `sigdep` | `NATIONAL_VIEWER`                            |
+| `site-user`       | `sigdep` | `SITE_USER` (needs a `siteId` attribute)     |
 
-The dev stack puts everything behind a single nginx origin
-(`http://localhost:9000`) — exactly like the production topology, so OIDC
-and CORS behave identically in both. Open `http://localhost:9000` in your
-browser; the SPA, the API and Keycloak are all reachable from there.
+| Layer                        | Port | Notes                                          |
+| ---------------------------- | ---- | ---------------------------------------------- |
+| nginx (entry point)          | 9000 | Single origin for the whole stack              |
+| Vite dev server (HMR)        | 5173 | Reached via the nginx proxy                    |
+| console-api                  | 8041 | Spring Boot                                    |
+| ingestion-api                | 8090 | Spring Boot, owns the Liquibase changelog      |
+| Keycloak (direct admin only) | 8180 | Day-to-day traffic goes through nginx on :9000 |
+| Postgres                     | 5436 | Database `sigdep`, user `sigdep`/`sigdep`      |
 
-```bash
-cd infra && docker compose up -d            # postgres (5436) + keycloak (8180) + nginx (9000)
+## Documentation
 
-cd ../ingestion-api && ./run.sh --dev       # port 8090, runs Liquibase
-cd ../console-api    && ./run.sh --dev      # port 8041
-cd ../console-web    && npm install && npm run dev   # port 5173 (proxied through nginx)
-```
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — module topology, auth model
+  (JWT + AuthScope), the geo-scoping rules, how indicators are computed.
+- [docs/OPERATIONS.md](docs/OPERATIONS.md) — day-to-day commands (kcadm,
+  Liquibase, run.sh), troubleshooting recipes for the issues we hit during
+  build-up (CORS, user attributes, profile dev, …).
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — checklist for a real install
+  based on `infra/docker-compose.prod.yml`. TLS, secrets, backups.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — git workflow, commit conventions,
+  code style.
+- [infra/keycloak/README.md](infra/keycloak/README.md) — realm import,
+  user-profile attributes, kcadm.sh snippets.
 
-| Layer                         | Port |
-|-------------------------------|------|
-| nginx (entry point)           | 9000 |
-| Vite dev server (HMR)         | 5173 |
-| console-api                   | 8041 |
-| ingestion-api                 | 8090 |
-| Keycloak (direct admin only)  | 8180 |
-| Postgres                      | 5436 |
+## License
 
-The dev Spring profile that bypassed auth has been removed; both APIs now
-always validate JWTs against Keycloak. Make sure to be logged in before
-calling any non-public endpoint.
-
-## Production layout
-
-`infra/docker-compose.prod.yml` reproduces the same single-origin topology
-behind TLS. nginx terminates HTTPS and forwards `/realms/*` to Keycloak,
-`/api/v1/sync/*` to the ingestion-api, the rest of `/api/*` to the
-console-api, and serves the built SPA bundle. Keycloak runs in
-`start --optimized` mode against its own Postgres database. The file is a
-working skeleton: TLS certs, secrets and image tags have to be supplied
-per environment before going live.
-
-In all environments, `ingestion-api` and `console-api` deploy as **two
-separate processes** (potentially scaled independently) sharing the same
-PostgreSQL database.
+To be decided in a plenary session with the HMIS TWG; no license file is
+shipped yet. In the meantime, treat the contents as "all rights reserved
+by I-TECH Côte d'Ivoire and the PNLS programme".

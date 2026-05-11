@@ -1,12 +1,27 @@
+# Build artefacts
 target/
 *.class
 *.jar
-.idea/
-.vscode/
-*.iml
-.DS_Store
 node_modules/
 dist/
 .vite/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets — never commit. Use .env.example as a template.
 .env
 .env.local
+.env.*.local
+
+# TLS material — provided per-environment by the deploy pipeline.
+infra/nginx/certs/
+
+# Logs
+*.log
