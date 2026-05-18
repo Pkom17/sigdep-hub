@@ -9,6 +9,9 @@ import {
 import { fetchDashboardKpis } from '../api/client';
 import { Kpi, formatInt, formatPercent } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
+import {
+  ChartSkeleton, KpiRowSkeleton, ListSkeleton,
+} from '../components/Skeleton';
 import { StatusBadge, type BadgeTone } from '../components/StatusBadge';
 
 function formatTime(iso: string | null): string {
@@ -34,29 +37,31 @@ export function Dashboard() {
         subtitle={`Périmètre : National · ${periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1)}`} />
 
       {/* KPI row */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
-        <Kpi label="File active"
-             icon={Users}
-             value={isError ? 'Erreur' : formatInt(data?.fileActive)}
-             hint="12 mois glissants"
-             hintTone="neutral" />
-        <Kpi label="TX_NEW (mois)"
-             icon={UserPlus}
-             value={isError ? 'Erreur' : formatInt(data?.txNewMonth)}
-             hint="Nouvelles initiations ARV"
-             hintTone="neutral" />
-        <Kpi label="CV supprimée"
-             icon={TrendingUp}
-             value={isError ? 'Erreur' : formatPercent(data?.viralSuppression ?? null)}
-             hint="< 1000 copies/mL · 12 mois"
-             hintTone="positive" />
-        <Kpi label="Sites en ligne"
-             icon={Building2}
-             value={isError ? 'Erreur'
-                : `${formatInt(data?.sitesOnline)} / ${formatInt(data?.sitesTotalScope)}`}
-             hint="Synchronisés < 24h"
-             hintTone="neutral" />
-      </div>
+      {isLoading ? <KpiRowSkeleton /> : (
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
+          <Kpi label="File active"
+               icon={Users}
+               value={isError ? 'Erreur' : formatInt(data?.fileActive)}
+               hint="12 mois glissants"
+               hintTone="neutral" />
+          <Kpi label="TX_NEW (mois)"
+               icon={UserPlus}
+               value={isError ? 'Erreur' : formatInt(data?.txNewMonth)}
+               hint="Nouvelles initiations ARV"
+               hintTone="neutral" />
+          <Kpi label="CV supprimée"
+               icon={TrendingUp}
+               value={isError ? 'Erreur' : formatPercent(data?.viralSuppression ?? null)}
+               hint="< 1000 copies/mL · 12 mois"
+               hintTone="positive" />
+          <Kpi label="Sites en ligne"
+               icon={Building2}
+               value={isError ? 'Erreur'
+                  : `${formatInt(data?.sitesOnline)} / ${formatInt(data?.sitesTotalScope)}`}
+               hint="Synchronisés < 24h"
+               hintTone="neutral" />
+        </div>
+      )}
 
       {/* Two-column row */}
       <div className="grid gap-3 lg:grid-cols-2">
@@ -72,9 +77,7 @@ export function Dashboard() {
           </header>
           <div className="h-56">
             {isLoading ? (
-              <div className="h-full flex items-center justify-center text-ink-muted text-sm">
-                Chargement…
-              </div>
+              <ChartSkeleton height="h-56" />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data?.activeFile ?? []}
@@ -106,7 +109,7 @@ export function Dashboard() {
             </h3>
           </header>
           {isLoading ? (
-            <p className="text-sm text-ink-muted">Chargement…</p>
+            <ListSkeleton rows={4} />
           ) : data ? (
             <ul className="divide-y divide-slate-100">
               <AlertRow

@@ -10,6 +10,7 @@ import { BarChart3, Download } from "lucide-react";
 import { Kpi, formatInt, formatPercent } from "../components/Kpi";
 import { PageHeader } from "../components/PageHeader";
 import { GeoFilter, GeoScope } from "../components/GeoFilter";
+import { KpiRowSkeleton, ListSkeleton } from "../components/Skeleton";
 
 const AGE_BANDS = ["<15", "15-24", "25-49", "50+", "unknown"] as const;
 const SEXES: ReadonlyArray<{ key: "M" | "F"; label: string }> = [
@@ -135,49 +136,41 @@ export function Pepfar() {
         </>} />
 
       {/* KPI summary */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
-        <Kpi
-          label="TX_NEW"
-          value={
-            report.isError ? "Erreur" : formatInt(report.data?.txNew.total)
-          }
-          hint="Nouvelles initiations ARV"
-          hintTone="neutral"
-        />
-        <Kpi
-          label="TX_CURR"
-          value={
-            report.isError ? "Erreur" : formatInt(report.data?.txCurr.total)
-          }
-          hint="Sous traitement (fin du trimestre)"
-          hintTone="neutral"
-        />
-        <Kpi
-          label="TX_PVLS (D)"
-          value={
-            report.isError
-              ? "Erreur"
-              : formatInt(report.data?.txPvls.denominator.total)
-          }
-          hint="Éligibles à un test CV (12 mois)"
-          hintTone="neutral"
-        />
-        <Kpi
-          label="TX_PVLS (%)"
-          value={
-            report.isError
-              ? "Erreur"
-              : formatPercent(report.data?.txPvls.pct ?? null)
-          }
-          hint="CV < 1000 copies/mL"
-          hintTone="positive"
-        />
-      </div>
+      {report.isLoading ? <KpiRowSkeleton /> : (
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
+          <Kpi
+            label="TX_NEW"
+            value={report.isError ? "Erreur" : formatInt(report.data?.txNew.total)}
+            hint="Nouvelles initiations ARV"
+            hintTone="neutral"
+          />
+          <Kpi
+            label="TX_CURR"
+            value={report.isError ? "Erreur" : formatInt(report.data?.txCurr.total)}
+            hint="Sous traitement (fin du trimestre)"
+            hintTone="neutral"
+          />
+          <Kpi
+            label="TX_PVLS (D)"
+            value={report.isError
+                ? "Erreur"
+                : formatInt(report.data?.txPvls.denominator.total)}
+            hint="Éligibles à un test CV (12 mois)"
+            hintTone="neutral"
+          />
+          <Kpi
+            label="TX_PVLS (%)"
+            value={report.isError
+                ? "Erreur"
+                : formatPercent(report.data?.txPvls.pct ?? null)}
+            hint="CV < 1000 copies/mL"
+            hintTone="positive"
+          />
+        </div>
+      )}
 
       {/* Disaggregation tables */}
-      {report.isLoading && (
-        <p className="text-sm text-ink-muted">Chargement…</p>
-      )}
+      {report.isLoading && <ListSkeleton rows={6} />}
       {report.data && (
         <div className="space-y-6">
           <DisaggTable
