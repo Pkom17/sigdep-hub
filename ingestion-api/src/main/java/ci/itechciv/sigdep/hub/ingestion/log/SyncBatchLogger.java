@@ -117,15 +117,31 @@ public class SyncBatchLogger {
     }
 
     /**
-     * Group errors by a coarse "label" (code or message) and keep the top
-     * {@value #MAX_ERROR_SAMPLE} entries by count. Avoids storing the full
-     * per-row error list, which can be thousands long.
+     * Group errors by a coarse "label" and keep the top {@value #MAX_ERROR_SAMPLE}
+     * entries by count. The label is the code when it's meaningful on its own
+     * (UNKNOWN_PATIENT, SITE_NOT_FOUND, ...), and "code: short-message" for
+     * generic codes (UPSERT_FAILED) so we don't lose the actual SQL / runtime
+     * cause when grouping. Avoids storing the full per-row error list, which
+     * can be thousands long.
      */
+    private static final java.util.Set<String> GENERIC_CODES =
+            java.util.Set.of("UPSERT_FAILED");
+
     private static List<Map<String, Object>> buildErrorSample(List<RecordError> errors) {
         Map<String, Integer> counts = new LinkedHashMap<>();
         for (RecordError e : errors) {
-            String label = e.code() != null && !e.code().isBlank() ? e.code()
-                    : (e.message() != null ? truncate(e.message(), 120) : "unknown");
+            String code = e.code() == null || e.code().isBlank() ? null : e.code();
+            String message = e.message();
+            String label;
+            if (code != null && GENERIC_CODES.contains(code) && message != null && !message.isBlank()) {
+                label = code + ": " + truncate(message, 200);
+            } else if (code != null) {
+                label = code;
+            } else if (message != null && !message.isBlank()) {
+                label = truncate(message, 200);
+            } else {
+                label = "unknown";
+            }
             counts.merge(label, 1, Integer::sum);
         }
         return counts.entrySet().stream()
