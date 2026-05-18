@@ -857,3 +857,65 @@ export async function downloadPharmacyCsv(months: number, scope: GeoScopeQ): Pro
   const url = `/api/v1/pharmacy/dispensations.csv?${params}`;
   await downloadCsv(url, `pharmacie-${months}m.csv`);
 }
+
+// --- Sync rejected records -------------------------------------------------
+
+export type RejectBucket = 'open' | 'resolved' | 'all';
+
+export type RejectRow = {
+  id: number;
+  batchId: number | null;
+  entityType: string;
+  sourceUuid: string;
+  errorCode: string | null;
+  errorMessage: string | null;
+  rejectedAt: string | null;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+  resolutionNote: string | null;
+  siteCode: string | null;
+  siteName: string | null;
+};
+
+export type RejectsPage = {
+  content: RejectRow[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export type RejectsEntityCount = { entityType: string; count: number };
+
+export function fetchSyncRejects(opts: {
+  regionId?: number;
+  districtId?: number;
+  siteId?: number;
+  entityType?: string;
+  errorCode?: string;
+  bucket?: RejectBucket;
+  sort?: SortQ;
+  page?: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  if (opts.regionId)   params.set('regionId',   String(opts.regionId));
+  if (opts.districtId) params.set('districtId', String(opts.districtId));
+  if (opts.siteId)     params.set('siteId',     String(opts.siteId));
+  if (opts.entityType) params.set('entityType', opts.entityType);
+  if (opts.errorCode)  params.set('errorCode',  opts.errorCode);
+  params.set('bucket', opts.bucket ?? 'open');
+  appendSort(params, opts.sort ?? null);
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<RejectsPage>(`/api/v1/sync/rejected?${params}`);
+}
+
+export function fetchSyncRejectsOpenCounts(scope: GeoScopeQ) {
+  const params = new URLSearchParams();
+  appendScope(params, scope);
+  return get<RejectsEntityCount[]>(`/api/v1/sync/rejected/counts?${params}`);
+}
+
+export function resolveSyncReject(id: number, note?: string) {
+  return send<void>('POST', `/api/v1/sync/rejected/${id}/resolve`, { note });
+}

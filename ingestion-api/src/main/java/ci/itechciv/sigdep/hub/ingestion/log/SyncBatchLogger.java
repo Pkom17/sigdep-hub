@@ -74,7 +74,8 @@ public class SyncBatchLogger {
     /** Close out the row with the final counts. Silent on errors. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void finish(long auditId, Instant startedAt,
-                       int accepted, int rejected, List<RecordError> errors) {
+                       int accepted, int rejected, List<RecordError> errors,
+                       Long siteId, String entityType) {
         if (auditId <= 0) return;
         try {
             String status = rejected == 0 ? "ok" : "partial";
@@ -90,9 +91,41 @@ public class SyncBatchLogger {
                     accepted, rejected,
                     java.sql.Timestamp.from(now), (int) durationMs,
                     status, sample, auditId);
+            // Per-row rejects: every error becomes a row in audit.rejected_record
+            // so operators can find which specific OpenMRS UUID failed without
+            // grepping the aggregated error_sample.
+            if (errors != null && !errors.isEmpty()) {
+                insertRejects(auditId, siteId, entityType, errors);
+            }
         } catch (Exception ex) {
             log.warn("Failed to close audit.sync_batch row {}: {}", auditId, ex.toString());
         }
+    }
+
+    /**
+     * Bulk-insert one row per reject. Done in the same {@code REQUIRES_NEW}
+     * transaction as the audit update so a partial failure here doesn't leave
+     * the audit row half-closed.
+     */
+    private void insertRejects(long auditId, Long siteId, String entityType,
+                               List<RecordError> errors) {
+        if (errors.isEmpty()) return;
+        List<Object[]> batch = new java.util.ArrayList<>(errors.size());
+        for (RecordError e : errors) {
+            batch.add(new Object[]{
+                    auditId,
+                    siteId,
+                    entityType,
+                    e.sourceUuid() == null ? "unknown" : e.sourceUuid().toString(),
+                    e.code(),
+                    e.message() == null ? null : truncate(e.message(), 4000),
+            });
+        }
+        jdbc.batchUpdate(
+                "INSERT INTO audit.rejected_record"
+              + "  (batch_id, site_id, entity_type, source_uuid, error_code, error_message)"
+              + "  VALUES (?, ?, ?, ?, ?, ?)",
+                batch);
     }
 
     /** Mark the row failed (an exception escaped the writer). Silent on errors. */

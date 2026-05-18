@@ -36,5 +36,6 @@
     <include file="db/changelog/v1.0/027-add-tpt-status-regimen.xml"/>
     <include file="db/changelog/v1.0/028-add-visits-tpt-columns.xml"/>
     <include file="db/changelog/v1.0/029-create-sync-batch.xml"/>
+    <include file="db/changelog/v1.0/030-create-rejected-record.xml"/>
 
 </databaseChangeLog>

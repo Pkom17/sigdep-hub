@@ -79,7 +79,7 @@ public class SyncController {
         try {
             var r = patientWriter.upsertBatch(site.getId(), batch.records());
             sites.touchLastSyncAt(site.getId());
-            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors());
+            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors(), site.getId(), "patients");
             return ResponseEntity.ok(new SyncBatchResponse(
                     batch.batchId(), r.accepted(), r.rejected(), r.errors()));
         } catch (RuntimeException ex) {
@@ -99,7 +99,7 @@ public class SyncController {
         try {
             var r = visitWriter.upsertBatch(site.getId(), batch.records());
             sites.touchLastSyncAt(site.getId());
-            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors());
+            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors(), site.getId(), "visits");
             return ResponseEntity.ok(new SyncBatchResponse(
                     batch.batchId(), r.accepted(), r.rejected(), r.errors()));
         } catch (RuntimeException ex) {
@@ -120,7 +120,8 @@ public class SyncController {
         try {
             var r = initiationWriter.upsertBatch(site.getId(), batch.records());
             sites.touchLastSyncAt(site.getId());
-            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors());
+            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors(),
+                    site.getId(), "treatment_initiations");
             return ResponseEntity.ok(new SyncBatchResponse(
                     batch.batchId(), r.accepted(), r.rejected(), r.errors()));
         } catch (RuntimeException ex) {
@@ -140,7 +141,7 @@ public class SyncController {
         try {
             var r = closureWriter.upsertBatch(site.getId(), batch.records());
             sites.touchLastSyncAt(site.getId());
-            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors());
+            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors(), site.getId(), "closures");
             return ResponseEntity.ok(new SyncBatchResponse(
                     batch.batchId(), r.accepted(), r.rejected(), r.errors()));
         } catch (RuntimeException ex) {
@@ -160,7 +161,7 @@ public class SyncController {
         try {
             var r = labResultWriter.upsertBatch(site.getId(), batch.records());
             sites.touchLastSyncAt(site.getId());
-            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors());
+            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors(), site.getId(), "lab_results");
             return ResponseEntity.ok(new SyncBatchResponse(
                     batch.batchId(), r.accepted(), r.rejected(), r.errors()));
         } catch (RuntimeException ex) {
@@ -180,7 +181,7 @@ public class SyncController {
         try {
             var r = tptWriter.upsertBatch(site.getId(), batch.records());
             sites.touchLastSyncAt(site.getId());
-            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors());
+            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors(), site.getId(), "tpt_records");
             return ResponseEntity.ok(new SyncBatchResponse(
                     batch.batchId(), r.accepted(), r.rejected(), r.errors()));
         } catch (RuntimeException ex) {
@@ -201,7 +202,8 @@ public class SyncController {
         long auditId = auditLog.start(batch.batchId(),
                 site == null ? null : site.getId(), batch.siteCode(),
                 "dispensations", batch.records().size());
-        auditLog.finish(auditId, t0, batch.records().size(), 0, List.<RecordError>of());
+        auditLog.finish(auditId, t0, batch.records().size(), 0, List.<RecordError>of(),
+                site == null ? null : site.getId(), "dispensations");
         return ResponseEntity.ok(new SyncBatchResponse(
                 batch.batchId(), batch.records().size(), 0, List.of()));
     }
@@ -212,11 +214,12 @@ public class SyncController {
             @RequestBody SyncBatchRequest<Object> batch) {
         Site site = resolveOrNull(batch.siteCode());
         Instant t0 = Instant.now();
+        String entityName = "backfill_" + entityType.name().toLowerCase(java.util.Locale.ROOT);
         long auditId = auditLog.start(batch.batchId(),
                 site == null ? null : site.getId(), batch.siteCode(),
-                "backfill_" + entityType.name().toLowerCase(java.util.Locale.ROOT),
-                batch.records().size());
-        auditLog.finish(auditId, t0, batch.records().size(), 0, List.<RecordError>of());
+                entityName, batch.records().size());
+        auditLog.finish(auditId, t0, batch.records().size(), 0, List.<RecordError>of(),
+                site == null ? null : site.getId(), entityName);
         return ResponseEntity.ok(new SyncBatchResponse(
                 batch.batchId(), batch.records().size(), 0, List.of()));
     }
