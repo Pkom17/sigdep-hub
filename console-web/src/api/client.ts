@@ -817,7 +817,6 @@ export type InitiationRecord = {
   karnofskyScore: number | null;
   referred: string | null;
   referredOrigin: string | null;
-  pediatric: boolean;
   siteCode: string;
   siteName: string;
 };

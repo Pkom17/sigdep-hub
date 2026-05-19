@@ -77,7 +77,7 @@ public class InitiationController {
         try (PrintWriter w = response.getWriter()) {
             w.write('﻿');
             w.println("date_init;date_enrol;patient_code;porte_entree;type_vih;regime_initial;stade_oms;stade_cdc;"
-                    + "poids_kg;karnofsky;refere;origine_referencement;pediatrique;site_code;site_nom");
+                    + "poids_kg;karnofsky;refere;origine_referencement;site_code;site_nom");
             for (InitiationRecord r : page.content()) {
                 w.print(r.arvInitDate() == null ? "" : r.arvInitDate().format(df));
                 w.print(';');
@@ -102,8 +102,6 @@ public class InitiationController {
                 w.print(csv(r.referred()));
                 w.print(';');
                 w.print(csv(r.referredOrigin()));
-                w.print(';');
-                w.print(r.pediatric() ? "oui" : "non");
                 w.print(';');
                 w.print(csv(r.siteCode()));
                 w.print(';');

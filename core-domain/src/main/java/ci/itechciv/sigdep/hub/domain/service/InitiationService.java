@@ -173,14 +173,12 @@ public class InitiationService {
                         + "       i.who_stage_initial, i.cdc_stage_initial,"
                         + "       i.weight_initial_kg, i.karnofsky_score,"
                         + "       i.referred, i.referred_origin,"
-                        + "       (p.initiation_id IS NOT NULL) AS is_pediatric,"
                         + "       site.code AS site_code, site.name AS site_name,"
                         + "       (SELECT pi.identifier_value FROM core.patient_identifiers pi"
                         + "         WHERE pi.patient_id = i.patient_id"
                         + "         ORDER BY pi.id LIMIT 1) AS patient_code"
                         + " FROM core.treatment_initiations i"
                         + " JOIN core.sites site ON site.id = i.site_id" + geoJoin
-                        + " LEFT JOIN core.treatment_initiations_pediatric p ON p.initiation_id = i.id"
                         + " WHERE i.voided = FALSE AND i.arv_init_date >= ?"
                         + SortSpec.orderBy(sort, dir, INIT_SORTABLE,
                                 "i.arv_init_date DESC NULLS LAST, i.id DESC")
@@ -200,7 +198,6 @@ public class InitiationService {
                         (Integer) rs.getObject("karnofsky_score"),
                         rs.getString("referred"),
                         rs.getString("referred_origin"),
-                        rs.getBoolean("is_pediatric"),
                         rs.getString("site_code"),
                         rs.getString("site_name")),
                 pagedArgs.toArray());
@@ -243,7 +240,6 @@ public class InitiationService {
             Integer karnofskyScore,
             String referred,
             String referredOrigin,
-            boolean pediatric,
             String siteCode,
             String siteName
     ) {}

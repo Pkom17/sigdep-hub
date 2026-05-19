@@ -535,10 +535,6 @@ function InitiationsPanel({ months, scope }: { months: number; scope: GeoScope }
                           className="text-sigdep-700 hover:underline font-mono text-xs">
                       {r.patientCode ?? `#${r.patientId}`}
                     </Link>
-                    {r.pediatric && (
-                      <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700"
-                            title="Fiche pédiatrique liée">Péd.</span>
-                    )}
                   </td>
                   <td className="px-4 py-2">{r.entryPoint ?? "—"}</td>
                   <td className="px-4 py-2">{r.arvRegimenInitial ?? "—"}</td>
