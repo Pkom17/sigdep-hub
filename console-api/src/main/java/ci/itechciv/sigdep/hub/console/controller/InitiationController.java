@@ -2,10 +2,10 @@ package ci.itechciv.sigdep.hub.console.controller;
 
 import ci.itechciv.sigdep.hub.console.security.AuthScope;
 import ci.itechciv.sigdep.hub.console.security.AuthScope.Scope;
-import ci.itechciv.sigdep.hub.domain.service.ScreeningService;
-import ci.itechciv.sigdep.hub.domain.service.ScreeningService.RecordPage;
-import ci.itechciv.sigdep.hub.domain.service.ScreeningService.ScreeningRecord;
-import ci.itechciv.sigdep.hub.domain.service.ScreeningService.ScreeningSummary;
+import ci.itechciv.sigdep.hub.domain.service.InitiationService;
+import ci.itechciv.sigdep.hub.domain.service.InitiationService.InitiationRecord;
+import ci.itechciv.sigdep.hub.domain.service.InitiationService.InitiationSummary;
+import ci.itechciv.sigdep.hub.domain.service.InitiationService.RecordPage;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -17,20 +17,20 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/screenings")
+@RequestMapping("/api/v1/initiations")
 @PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','DISTRICT_COORD','SITE_USER','ANALYST','AUDITOR')")
-public class ScreeningController {
+public class InitiationController {
 
-    private final ScreeningService service;
+    private final InitiationService service;
     private final AuthScope authScope;
 
-    public ScreeningController(ScreeningService service, AuthScope authScope) {
+    public InitiationController(InitiationService service, AuthScope authScope) {
         this.service = service;
         this.authScope = authScope;
     }
 
     @GetMapping("/summary")
-    public ScreeningSummary summary(
+    public InitiationSummary summary(
             @RequestParam(defaultValue = "60") int months,
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) Long districtId,
@@ -68,37 +68,42 @@ public class ScreeningController {
         RecordPage page = service.records(safeMonths,
                 s.regionId(), s.districtId(), s.siteId(), null, null, 0, 5000);
 
-        String filename = "depistage-" + safeMonths + "m.csv";
         response.setContentType("text/csv;charset=UTF-8");
         response.setCharacterEncoding("UTF-8");
-        response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+        response.setHeader("Content-Disposition",
+                "attachment; filename=\"initiations-" + safeMonths + "m.csv\"");
 
         DateTimeFormatter df = DateTimeFormatter.ISO_LOCAL_DATE;
         try (PrintWriter w = response.getWriter()) {
-            w.write('﻿'); // BOM
-            w.println("date_depistage;date_annonce;code;sexe;age;population;motif;resultat;retest;porte_entree;poste;site_code;site_nom");
-            for (ScreeningRecord r : page.content()) {
-                w.print(r.screeningDate() == null ? "" : r.screeningDate().format(df));
+            w.write('﻿');
+            w.println("date_init;date_enrol;patient_code;porte_entree;type_vih;regime_initial;stade_oms;stade_cdc;"
+                    + "poids_kg;karnofsky;refere;origine_referencement;pediatrique;site_code;site_nom");
+            for (InitiationRecord r : page.content()) {
+                w.print(r.arvInitDate() == null ? "" : r.arvInitDate().format(df));
                 w.print(';');
-                w.print(r.resultAnnouncingDate() == null ? "" : r.resultAnnouncingDate().format(df));
+                w.print(r.enrollmentDate() == null ? "" : r.enrollmentDate().format(df));
                 w.print(';');
-                w.print(csv(r.screeningCode()));
+                w.print(csv(r.patientCode()));
                 w.print(';');
-                w.print(csv(r.gender()));
+                w.print(csv(r.entryPoint()));
                 w.print(';');
-                w.print(r.age() == null ? "" : r.age().toString());
+                w.print(csv(r.hivType()));
                 w.print(';');
-                w.print(csv(r.populationType()));
+                w.print(csv(r.arvRegimenInitial()));
                 w.print(';');
-                w.print(csv(r.screeningReason()));
+                w.print(csv(r.whoStageInitial()));
                 w.print(';');
-                w.print(csv(r.finalResult()));
+                w.print(csv(r.cdcStageInitial()));
                 w.print(';');
-                w.print(r.retesting() == null ? "" : (Boolean.TRUE.equals(r.retesting()) ? "oui" : "non"));
+                w.print(r.weightInitialKg() == null ? "" : r.weightInitialKg().toPlainString());
                 w.print(';');
-                w.print(csv(r.screeningSiteType()));
+                w.print(r.karnofskyScore() == null ? "" : r.karnofskyScore().toString());
                 w.print(';');
-                w.print(csv(r.screeningPost()));
+                w.print(csv(r.referred()));
+                w.print(';');
+                w.print(csv(r.referredOrigin()));
+                w.print(';');
+                w.print(r.pediatric() ? "oui" : "non");
                 w.print(';');
                 w.print(csv(r.siteCode()));
                 w.print(';');

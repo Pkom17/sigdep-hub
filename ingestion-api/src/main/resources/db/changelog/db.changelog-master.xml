@@ -39,5 +39,6 @@
     <include file="db/changelog/v1.0/030-create-rejected-record.xml"/>
     <include file="db/changelog/v1.0/031-create-screenings.xml"/>
     <include file="db/changelog/v1.0/032-create-ptme.xml"/>
+    <include file="db/changelog/v1.0/033-add-visits-ivsa-columns.xml"/>
 
 </databaseChangeLog>

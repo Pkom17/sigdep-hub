@@ -2,10 +2,10 @@ package ci.itechciv.sigdep.hub.console.controller;
 
 import ci.itechciv.sigdep.hub.console.security.AuthScope;
 import ci.itechciv.sigdep.hub.console.security.AuthScope.Scope;
-import ci.itechciv.sigdep.hub.domain.service.ScreeningService;
-import ci.itechciv.sigdep.hub.domain.service.ScreeningService.RecordPage;
-import ci.itechciv.sigdep.hub.domain.service.ScreeningService.ScreeningRecord;
-import ci.itechciv.sigdep.hub.domain.service.ScreeningService.ScreeningSummary;
+import ci.itechciv.sigdep.hub.domain.service.ClosureService;
+import ci.itechciv.sigdep.hub.domain.service.ClosureService.ClosureRecord;
+import ci.itechciv.sigdep.hub.domain.service.ClosureService.ClosureSummary;
+import ci.itechciv.sigdep.hub.domain.service.ClosureService.RecordPage;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -17,20 +17,20 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/screenings")
+@RequestMapping("/api/v1/closures")
 @PreAuthorize("hasAnyRole('SUPER_ADMIN','IT_ADMIN','NATIONAL_VIEWER','REGIONAL_COORD','DISTRICT_COORD','SITE_USER','ANALYST','AUDITOR')")
-public class ScreeningController {
+public class ClosureController {
 
-    private final ScreeningService service;
+    private final ClosureService service;
     private final AuthScope authScope;
 
-    public ScreeningController(ScreeningService service, AuthScope authScope) {
+    public ClosureController(ClosureService service, AuthScope authScope) {
         this.service = service;
         this.authScope = authScope;
     }
 
     @GetMapping("/summary")
-    public ScreeningSummary summary(
+    public ClosureSummary summary(
             @RequestParam(defaultValue = "60") int months,
             @RequestParam(required = false) Long regionId,
             @RequestParam(required = false) Long districtId,
@@ -68,37 +68,37 @@ public class ScreeningController {
         RecordPage page = service.records(safeMonths,
                 s.regionId(), s.districtId(), s.siteId(), null, null, 0, 5000);
 
-        String filename = "depistage-" + safeMonths + "m.csv";
         response.setContentType("text/csv;charset=UTF-8");
         response.setCharacterEncoding("UTF-8");
-        response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+        response.setHeader("Content-Disposition",
+                "attachment; filename=\"clotures-" + safeMonths + "m.csv\"");
 
         DateTimeFormatter df = DateTimeFormatter.ISO_LOCAL_DATE;
         try (PrintWriter w = response.getWriter()) {
-            w.write('﻿'); // BOM
-            w.println("date_depistage;date_annonce;code;sexe;age;population;motif;resultat;retest;porte_entree;poste;site_code;site_nom");
-            for (ScreeningRecord r : page.content()) {
-                w.print(r.screeningDate() == null ? "" : r.screeningDate().format(df));
+            w.write('﻿');
+            w.println("date_cloture;patient_code;motif;date_deces;cause_deces;"
+                    + "date_transfert;destination_transfert;motif_transfert;"
+                    + "date_arret_volontaire;date_negativation;site_code;site_nom");
+            for (ClosureRecord r : page.content()) {
+                w.print(r.closureDate() == null ? "" : r.closureDate().format(df));
                 w.print(';');
-                w.print(r.resultAnnouncingDate() == null ? "" : r.resultAnnouncingDate().format(df));
+                w.print(csv(r.patientCode()));
                 w.print(';');
-                w.print(csv(r.screeningCode()));
+                w.print(csv(r.closureType()));
                 w.print(';');
-                w.print(csv(r.gender()));
+                w.print(r.deathDate() == null ? "" : r.deathDate().format(df));
                 w.print(';');
-                w.print(r.age() == null ? "" : r.age().toString());
+                w.print(csv(r.deathCauseText() != null ? r.deathCauseText() : r.deathCauseCode()));
                 w.print(';');
-                w.print(csv(r.populationType()));
+                w.print(r.transferDate() == null ? "" : r.transferDate().format(df));
                 w.print(';');
-                w.print(csv(r.screeningReason()));
+                w.print(csv(r.transferDestination()));
                 w.print(';');
-                w.print(csv(r.finalResult()));
+                w.print(csv(r.transferReason()));
                 w.print(';');
-                w.print(r.retesting() == null ? "" : (Boolean.TRUE.equals(r.retesting()) ? "oui" : "non"));
+                w.print(r.voluntaryStopDate() == null ? "" : r.voluntaryStopDate().format(df));
                 w.print(';');
-                w.print(csv(r.screeningSiteType()));
-                w.print(';');
-                w.print(csv(r.screeningPost()));
+                w.print(r.hivNegativeDate() == null ? "" : r.hivNegativeDate().format(df));
                 w.print(';');
                 w.print(csv(r.siteCode()));
                 w.print(';');

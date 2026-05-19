@@ -125,6 +125,27 @@ public class ScreeningService {
                 (rs, i) -> new Bucket(rs.getString("k"), rs.getLong("n")),
                 geoArgs(regionId, districtId, siteId, since));
 
+        // Porte d'entrée — for each screening_site_type, total screened +
+        // positives + positivity rate. Programmatically structuring data:
+        // shows which entry points yield the most positives.
+        List<SiteTypeStat> siteTypes = jdbc.query(
+                "SELECT COALESCE(sc.screening_site_type, '(non renseigné)') AS k,"
+                        + "       count(*) AS n,"
+                        + "       count(*) FILTER (WHERE sc.final_result = 'POS') AS pos,"
+                        + "       count(*) FILTER (WHERE sc.final_result = 'NEG') AS neg"
+                        + " FROM core.screenings sc" + region
+                        + " WHERE sc.voided = FALSE AND sc.screening_date >= ?"
+                        + " GROUP BY k ORDER BY n DESC",
+                (rs, i) -> {
+                    long n = rs.getLong("n");
+                    long p = rs.getLong("pos");
+                    BigDecimal rate = n == 0 ? null
+                            : new BigDecimal(p).multiply(new BigDecimal(100))
+                                    .divide(new BigDecimal(n), 1, RoundingMode.HALF_UP);
+                    return new SiteTypeStat(rs.getString("k"), n, p, rs.getLong("neg"), rate);
+                },
+                geoArgs(regionId, districtId, siteId, since));
+
         return new ScreeningSummary(
                 total == null ? 0L : total,
                 inPeriod == null ? 0L : inPeriod,
@@ -136,6 +157,7 @@ public class ScreeningService {
                 populations,
                 reasons,
                 genders,
+                siteTypes,
                 months);
     }
 
@@ -229,11 +251,14 @@ public class ScreeningService {
             List<Bucket> populations,
             List<Bucket> reasons,
             List<Bucket> genders,
+            List<SiteTypeStat> siteTypes,
             int periodMonths
     ) {}
 
     public record YearBucket(int year, long count) {}
     public record Bucket(String label, long count) {}
+    public record SiteTypeStat(String label, long screened, long positive, long negative,
+                               BigDecimal positivityPct) {}
 
     public record ScreeningRecord(
             long id,

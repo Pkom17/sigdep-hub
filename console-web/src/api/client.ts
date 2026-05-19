@@ -481,6 +481,14 @@ export async function downloadTptCsv(months: number, scope: GeoScopeQ): Promise<
 
 // --- Dépistage (HIV screening) --------------------------------------------
 
+export type ScreeningSiteTypeStat = {
+  label: string;
+  screened: number;
+  positive: number;
+  negative: number;
+  positivityPct: number | null;
+};
+
 export type ScreeningSummary = {
   totalAllTime: number;
   screenedInPeriod: number;
@@ -492,6 +500,7 @@ export type ScreeningSummary = {
   populations: Bucket[];
   reasons: Bucket[];
   genders: Bucket[];
+  siteTypes: ScreeningSiteTypeStat[];
   periodMonths: number;
 };
 
@@ -775,6 +784,219 @@ export async function downloadClinicCsv(months: number, scope: GeoScopeQ): Promi
   appendScope(params, scope);
   const url = `/api/v1/clinic/visits.csv?${params}`;
   await downloadCsv(url, `clinique-${months}m.csv`);
+}
+
+// --- Initiations (fiche initiale) -----------------------------------------
+
+export type InitiationSummary = {
+  totalAllTime: number;
+  inPeriod: number;
+  pediatric: number;
+  referred: number;
+  pediatricPct: number | null;
+  yearly: YearBucket[];
+  entryPoints: Bucket[];
+  regimens: Bucket[];
+  whoStages: Bucket[];
+  periodMonths: number;
+};
+
+export type InitiationRecord = {
+  id: number;
+  patientId: number;
+  patientCode: string | null;
+  arvInitDate: string | null;
+  enrollmentDate: string | null;
+  entryPoint: string | null;
+  hivType: string | null;
+  arvRegimenInitial: string | null;
+  whoStageInitial: string | null;
+  cdcStageInitial: string | null;
+  weightInitialKg: number | null;
+  karnofskyScore: number | null;
+  referred: string | null;
+  referredOrigin: string | null;
+  pediatric: boolean;
+  siteCode: string;
+  siteName: string;
+};
+
+export type InitiationRecordPage = {
+  content: InitiationRecord[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export function fetchInitiationSummary(months: number, scope: GeoScopeQ) {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  appendScope(params, scope);
+  return get<InitiationSummary>(`/api/v1/initiations/summary?${params}`);
+}
+
+export function fetchInitiationRecords(opts: {
+  months: number;
+  regionId?: number;
+  districtId?: number;
+  siteId?: number;
+  sort?: SortQ;
+  page?: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  params.set('months', String(opts.months));
+  appendScope(params, opts);
+  appendSort(params, opts.sort ?? null);
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<InitiationRecordPage>(`/api/v1/initiations/records?${params}`);
+}
+
+export async function downloadInitiationCsv(months: number, scope: GeoScopeQ): Promise<void> {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  appendScope(params, scope);
+  await downloadCsv(`/api/v1/initiations/records.csv?${params}`, `initiations-${months}m.csv`);
+}
+
+// --- Closures (clôtures) ---------------------------------------------------
+
+export type ClosureSummary = {
+  totalAllTime: number;
+  inPeriod: number;
+  deaths: number;
+  transfers: number;
+  mortalityPct: number | null;
+  yearly: YearBucket[];
+  types: Bucket[];
+  deathCauses: Bucket[];
+  periodMonths: number;
+};
+
+export type ClosureRecord = {
+  id: number;
+  patientId: number;
+  patientCode: string | null;
+  closureDate: string | null;
+  closureType: string | null;
+  deathDate: string | null;
+  actualDeathDate: string | null;
+  deathCauseCode: string | null;
+  deathCauseText: string | null;
+  transferDate: string | null;
+  transferDestination: string | null;
+  transferReason: string | null;
+  voluntaryStopDate: string | null;
+  hivNegativeDate: string | null;
+  siteCode: string;
+  siteName: string;
+};
+
+export type ClosureRecordPage = {
+  content: ClosureRecord[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export function fetchClosureSummary(months: number, scope: GeoScopeQ) {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  appendScope(params, scope);
+  return get<ClosureSummary>(`/api/v1/closures/summary?${params}`);
+}
+
+export function fetchClosureRecords(opts: {
+  months: number;
+  regionId?: number;
+  districtId?: number;
+  siteId?: number;
+  sort?: SortQ;
+  page?: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  params.set('months', String(opts.months));
+  appendScope(params, opts);
+  appendSort(params, opts.sort ?? null);
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<ClosureRecordPage>(`/api/v1/closures/records?${params}`);
+}
+
+export async function downloadClosureCsv(months: number, scope: GeoScopeQ): Promise<void> {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  appendScope(params, scope);
+  await downloadCsv(`/api/v1/closures/records.csv?${params}`, `clotures-${months}m.csv`);
+}
+
+// --- IVSA (sub-module de Clinique) -----------------------------------------
+
+export type IvsaSummary = {
+  totalAllTime: number;
+  inPeriod: number;
+  successConfirmed: number;
+  withAlertSigns: number;
+  successPct: number | null;
+  msdDistribution: Bucket[];
+  periodMonths: number;
+};
+
+export type IvsaRow = {
+  id: number;
+  patientId: number;
+  patientCode: string | null;
+  visitDate: string | null;
+  nextVisitDate: string | null;
+  msdCode: string | null;
+  successConfirmationDate: string | null;
+  alertSignsCount: number | null;
+  neuroSignsCount: number | null;
+  weightKg: number | null;
+  temperatureC: number | null;
+  siteCode: string;
+  siteName: string;
+};
+
+export type IvsaPage = {
+  content: IvsaRow[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export function fetchIvsaSummary(months: number, scope: GeoScopeQ) {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  appendScope(params, scope);
+  return get<IvsaSummary>(`/api/v1/clinic/ivsa/summary?${params}`);
+}
+
+export function fetchIvsaVisits(opts: {
+  months: number;
+  regionId?: number;
+  districtId?: number;
+  siteId?: number;
+  sort?: SortQ;
+  page?: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  params.set('months', String(opts.months));
+  appendScope(params, opts);
+  appendSort(params, opts.sort ?? null);
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<IvsaPage>(`/api/v1/clinic/ivsa/visits?${params}`);
+}
+
+export async function downloadIvsaCsv(months: number, scope: GeoScopeQ): Promise<void> {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  appendScope(params, scope);
+  await downloadCsv(`/api/v1/clinic/ivsa/visits.csv?${params}`, `ivsa-${months}m.csv`);
 }
 
 // --- Users (Keycloak admin) ------------------------------------------------

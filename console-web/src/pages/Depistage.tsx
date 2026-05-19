@@ -6,6 +6,7 @@ import {
 import { Activity, Download } from 'lucide-react';
 import {
   downloadScreeningCsv, fetchScreeningRecords, fetchScreeningSummary,
+  type ScreeningSiteTypeStat,
 } from '../api/client';
 import { Kpi, formatInt, formatPercent } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
@@ -143,6 +144,15 @@ export function Depistage() {
         </div>
       </div>
 
+      {/* Porte d'entrée — point d'accès au dépistage, donnée structurante pour le programme */}
+      <div className="card p-4 mb-6">
+        <div className="flex items-baseline justify-between mb-3">
+          <h3 className="text-sm font-semibold text-sigdep-800">Porte d'entrée</h3>
+          <span className="text-xs text-ink-muted">Volume et positivité par point d'accès</span>
+        </div>
+        <PorteEntreeTable rows={summary.data?.siteTypes ?? []} loading={summary.isLoading} />
+      </div>
+
       {/* Records table */}
       <div className="card overflow-hidden">
         <div className="px-4 py-3 bg-sigdep-50 border-b border-sigdep-100 flex items-center justify-between">
@@ -251,5 +261,56 @@ function DistributionTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+function PorteEntreeTable({
+  rows, loading,
+}: {
+  rows: ScreeningSiteTypeStat[];
+  loading: boolean;
+}) {
+  if (loading) {
+    return <div className="h-32 animate-pulse bg-slate-100 rounded" />;
+  }
+  if (rows.length === 0) {
+    return <div className="py-6 text-center text-ink-muted text-sm">Aucune donnée</div>;
+  }
+  const maxScreened = Math.max(...rows.map(r => r.screened), 1);
+  const totalScreened = rows.reduce((sum, r) => sum + r.screened, 0);
+  return (
+    <table className="w-full text-sm">
+      <thead className="text-ink-muted">
+        <tr className="text-left">
+          <th className="py-1 font-medium">Point d'accès</th>
+          <th className="py-1 font-medium text-right">Dépistés</th>
+          <th className="py-1 font-medium text-right">% Contribution</th>
+          <th className="py-1 font-medium text-right">Positifs</th>
+          <th className="py-1 font-medium text-right">% Positivité</th>
+          <th className="py-1 font-medium w-1/4">Volume</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {rows.map(r => {
+          const widthPct = (r.screened / maxScreened) * 100;
+          const contributionPct = totalScreened === 0 ? null
+              : Math.round((r.screened / totalScreened) * 1000) / 10;
+          return (
+            <tr key={r.label}>
+              <td className="py-2">{r.label}</td>
+              <td className="py-2 text-right tabular-nums">{formatInt(r.screened)}</td>
+              <td className="py-2 text-right tabular-nums text-ink-muted">{formatPercent(contributionPct)}</td>
+              <td className="py-2 text-right tabular-nums text-rose-700">{formatInt(r.positive)}</td>
+              <td className="py-2 text-right tabular-nums">{formatPercent(r.positivityPct)}</td>
+              <td className="py-2 pl-2">
+                <div className="h-2 bg-slate-100 rounded overflow-hidden">
+                  <div className="h-full bg-sigdep-500 rounded" style={{ width: `${widthPct}%` }} />
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
