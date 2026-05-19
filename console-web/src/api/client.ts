@@ -372,6 +372,21 @@ export type TxPvls = {
   numerator: Disaggregated;
   pct: number | null;
 };
+export type Pair = {
+  denominator: Disaggregated;
+  numerator: Disaggregated;
+  pct: number | null;
+};
+export type Hts = {
+  tst: Disaggregated;
+  pos: Disaggregated;
+  positivityPct: number | null;
+};
+export type Pmtct = {
+  stat: Pair;
+  art: Pair;
+  eid: Pair;
+};
 export type QuarterRange = {
   fiscalYear: number;
   quarter: number;
@@ -383,6 +398,9 @@ export type PepfarReport = {
   txNew: Disaggregated;
   txCurr: Disaggregated;
   txPvls: TxPvls;
+  hts: Hts;
+  pmtct: Pmtct;
+  tbPrev: Pair;
 };
 
 export function fetchPepfarReport(fy: number, q: number, scope: GeoScopeQ) {

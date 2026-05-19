@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   Disaggregated,
+  Hts,
+  Pair,
   TxPvls,
   downloadPepfarCsv,
   fetchPepfarReport,
@@ -135,7 +137,7 @@ export function Pepfar() {
           </button>
         </>} />
 
-      {/* KPI summary */}
+      {/* Cascade TX — KPI */}
       {report.isLoading ? <KpiRowSkeleton /> : (
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
           <Kpi
@@ -169,6 +171,36 @@ export function Pepfar() {
         </div>
       )}
 
+      {/* HTS + PMTCT + TB_PREV — KPI */}
+      {!report.isLoading && report.data && (
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
+          <Kpi
+            label="HTS_TST"
+            value={formatInt(report.data.hts.tst.total)}
+            hint="Personnes dépistées"
+            hintTone="neutral"
+          />
+          <Kpi
+            label="HTS_POS"
+            value={formatInt(report.data.hts.pos.total)}
+            hint={`Positivité : ${formatPercent(report.data.hts.positivityPct ?? null)}`}
+            hintTone="warning"
+          />
+          <Kpi
+            label="PMTCT_ART (%)"
+            value={formatPercent(report.data.pmtct.art.pct ?? null)}
+            hint={`${formatInt(report.data.pmtct.art.numerator.total)} sous ARV / ${formatInt(report.data.pmtct.art.denominator.total)} VIH+`}
+            hintTone="positive"
+          />
+          <Kpi
+            label="TB_PREV (%)"
+            value={formatPercent(report.data.tbPrev.pct ?? null)}
+            hint={`${formatInt(report.data.tbPrev.numerator.total)} terminés / ${formatInt(report.data.tbPrev.denominator.total)}`}
+            hintTone="positive"
+          />
+        </div>
+      )}
+
       {/* Disaggregation tables */}
       {report.isLoading && <ListSkeleton rows={6} />}
       {report.data && (
@@ -182,6 +214,27 @@ export function Pepfar() {
             data={report.data.txCurr}
           />
           <PvlsTable pvls={report.data.txPvls} />
+          <HtsTable hts={report.data.hts} />
+          <PairTable
+            title="PMTCT_STAT — Statut VIH connu chez la femme enceinte"
+            ratioLabel="connu"
+            pair={report.data.pmtct.stat}
+          />
+          <PairTable
+            title="PMTCT_ART — Femmes enceintes VIH+ sous ARV"
+            ratioLabel="sous ARV"
+            pair={report.data.pmtct.art}
+          />
+          <PairTable
+            title="PMTCT_EID — Enfants exposés avec PCR1 ≤ 2 mois"
+            ratioLabel="PCR1 précoce"
+            pair={report.data.pmtct.eid}
+          />
+          <PairTable
+            title="TB_PREV — TPT terminé pendant le trimestre"
+            ratioLabel="terminés"
+            pair={report.data.tbPrev}
+          />
         </div>
       )}
     </div>
@@ -310,6 +363,183 @@ function PvlsTable({ pvls }: { pvls: TxPvls }) {
               {pvls.pct !== null && (
                 <span className="text-emerald-700 text-xs ml-1">
                   ({pvls.pct}%)
+                </span>
+              )}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/**
+ * Generic numerator/denominator table — used for HTS_POS over HTS_TST,
+ * PMTCT_STAT/ART/EID and TB_PREV. Mirrors the PvlsTable layout but
+ * with a configurable ratioLabel so the header reads naturally
+ * ("connu" / "sous ARV" / "PCR1 précoce" / "terminés").
+ */
+function PairTable({
+  title,
+  ratioLabel,
+  pair,
+}: {
+  title: string;
+  ratioLabel: string;
+  pair: Pair;
+}) {
+  const denom = buildMatrix(pair.denominator);
+  const numer = buildMatrix(pair.numerator);
+  return (
+    <div className="card overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-200">
+        <h3 className="text-sm font-medium">
+          {title} &middot; {ratioLabel} / total (%)
+        </h3>
+      </div>
+      <table className="w-full text-sm">
+        <thead className="thead-sigdep text-left">
+          <tr>
+            <th className="px-4 py-2 text-left font-medium">Tranche d’âge</th>
+            {SEXES.map((s) => (
+              <th key={s.key} className="px-4 py-2 text-right font-medium">
+                {s.label}
+              </th>
+            ))}
+            <th className="px-4 py-2 text-right font-medium">Total</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {AGE_BANDS.filter(
+            (b) => denom.bandTotals[b] > 0 || b !== "unknown",
+          ).map((band) => (
+            <tr key={band} className="hover:bg-slate-50">
+              <td className="px-4 py-2">{band}</td>
+              {SEXES.map((s) => {
+                const d = denom.byBand[band][s.key] ?? 0;
+                const n = numer.byBand[band][s.key] ?? 0;
+                return (
+                  <td key={s.key} className="px-4 py-2 text-right tabular-nums">
+                    {formatInt(n)} / {formatInt(d)}
+                    {d > 0 && (
+                      <span className="text-ink-muted text-xs ml-1">
+                        ({Math.round((n / d) * 100)}%)
+                      </span>
+                    )}
+                  </td>
+                );
+              })}
+              <td className="px-4 py-2 text-right tabular-nums">
+                {formatInt(numer.bandTotals[band] ?? 0)} /{" "}
+                {formatInt(denom.bandTotals[band] ?? 0)}
+              </td>
+            </tr>
+          ))}
+          <tr className="bg-slate-50 font-medium">
+            <td className="px-4 py-2">Total</td>
+            {SEXES.map((s) => {
+              const d = denom.sexTotals[s.key] ?? 0;
+              const n = numer.sexTotals[s.key] ?? 0;
+              return (
+                <td key={s.key} className="px-4 py-2 text-right tabular-nums">
+                  {formatInt(n)} / {formatInt(d)}
+                  {d > 0 && (
+                    <span className="text-emerald-700 text-xs ml-1">
+                      ({Math.round((n / d) * 1000) / 10}%)
+                    </span>
+                  )}
+                </td>
+              );
+            })}
+            <td className="px-4 py-2 text-right tabular-nums">
+              {formatInt(pair.numerator.total)} /{" "}
+              {formatInt(pair.denominator.total)}
+              {pair.pct !== null && (
+                <span className="text-emerald-700 text-xs ml-1">
+                  ({pair.pct}%)
+                </span>
+              )}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/**
+ * HTS — two side-by-side disaggregated counts: HTS_TST (total tested)
+ * and HTS_POS (positives), with positivity rate at the row/column level.
+ */
+function HtsTable({ hts }: { hts: Hts }) {
+  const tst = buildMatrix(hts.tst);
+  const pos = buildMatrix(hts.pos);
+  return (
+    <div className="card overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-200">
+        <h3 className="text-sm font-medium">
+          HTS_TST / HTS_POS — Dépistage VIH &middot; positifs / dépistés (%)
+        </h3>
+      </div>
+      <table className="w-full text-sm">
+        <thead className="thead-sigdep text-left">
+          <tr>
+            <th className="px-4 py-2 text-left font-medium">Tranche d’âge</th>
+            {SEXES.map((s) => (
+              <th key={s.key} className="px-4 py-2 text-right font-medium">
+                {s.label}
+              </th>
+            ))}
+            <th className="px-4 py-2 text-right font-medium">Total</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {AGE_BANDS.filter(
+            (b) => tst.bandTotals[b] > 0 || b !== "unknown",
+          ).map((band) => (
+            <tr key={band} className="hover:bg-slate-50">
+              <td className="px-4 py-2">{band}</td>
+              {SEXES.map((s) => {
+                const t = tst.byBand[band][s.key] ?? 0;
+                const p = pos.byBand[band][s.key] ?? 0;
+                return (
+                  <td key={s.key} className="px-4 py-2 text-right tabular-nums">
+                    {formatInt(p)} / {formatInt(t)}
+                    {t > 0 && (
+                      <span className="text-rose-700 text-xs ml-1">
+                        ({Math.round((p / t) * 100)}%)
+                      </span>
+                    )}
+                  </td>
+                );
+              })}
+              <td className="px-4 py-2 text-right tabular-nums">
+                {formatInt(pos.bandTotals[band] ?? 0)} /{" "}
+                {formatInt(tst.bandTotals[band] ?? 0)}
+              </td>
+            </tr>
+          ))}
+          <tr className="bg-slate-50 font-medium">
+            <td className="px-4 py-2">Total</td>
+            {SEXES.map((s) => {
+              const t = tst.sexTotals[s.key] ?? 0;
+              const p = pos.sexTotals[s.key] ?? 0;
+              return (
+                <td key={s.key} className="px-4 py-2 text-right tabular-nums">
+                  {formatInt(p)} / {formatInt(t)}
+                  {t > 0 && (
+                    <span className="text-rose-700 text-xs ml-1">
+                      ({Math.round((p / t) * 1000) / 10}%)
+                    </span>
+                  )}
+                </td>
+              );
+            })}
+            <td className="px-4 py-2 text-right tabular-nums">
+              {formatInt(hts.pos.total)} / {formatInt(hts.tst.total)}
+              {hts.positivityPct !== null && (
+                <span className="text-rose-700 text-xs ml-1">
+                  ({hts.positivityPct}%)
                 </span>
               )}
             </td>
