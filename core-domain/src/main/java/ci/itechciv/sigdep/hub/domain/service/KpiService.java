@@ -319,4 +319,50 @@ public class KpiService {
             long sitesNoSync24h,
             java.time.OffsetDateTime lastBatchAt
     ) {}
+
+    // ---------- Répartition géographique -----------------------------------
+
+    /**
+     * File active par région. Chaque ligne = (regionId, regionName, count
+     * de patients ayant une visite dans les 12 derniers mois). Ordonné par
+     * région pour rendre l'affichage stable. Si le scope appelant est
+     * borné à un site / district / région, on filtre de la même façon —
+     * un SITE_USER verra une seule ligne, sa propre région.
+     */
+    @Cacheable(cacheNames = "fileActiveByRegion",
+            key = "T(java.util.Objects).hash(#regionId, #districtId, #siteId)")
+    public List<RegionBucket> fileActiveByRegion(Long regionId, Long districtId, Long siteId) {
+        LocalDate since = LocalDate.now().minusYears(1);
+        StringBuilder sql = new StringBuilder()
+                .append("SELECT r.id AS region_id, r.name AS region_name,")
+                .append("       count(DISTINCT v.patient_id) AS n")
+                .append(" FROM core.regions r")
+                .append(" LEFT JOIN core.districts d ON d.region_id = r.id")
+                .append(" LEFT JOIN core.sites s ON s.district_id = d.id")
+                .append(" LEFT JOIN core.visits v ON v.site_id = s.id")
+                .append("   AND v.voided = FALSE AND v.visit_date >= ?");
+
+        java.util.List<Object> args = new java.util.ArrayList<>();
+        args.add(since);
+        if (siteId != null) {
+            sql.append(" WHERE s.id = ?");
+            args.add(siteId);
+        } else if (districtId != null) {
+            sql.append(" WHERE d.id = ?");
+            args.add(districtId);
+        } else if (regionId != null) {
+            sql.append(" WHERE r.id = ?");
+            args.add(regionId);
+        }
+        sql.append(" GROUP BY r.id, r.name ORDER BY n DESC, r.name");
+
+        return jdbc.query(sql.toString(),
+                (rs, i) -> new RegionBucket(
+                        rs.getLong("region_id"),
+                        rs.getString("region_name"),
+                        rs.getLong("n")),
+                args.toArray());
+    }
+
+    public record RegionBucket(long regionId, String regionName, long count) {}
 }

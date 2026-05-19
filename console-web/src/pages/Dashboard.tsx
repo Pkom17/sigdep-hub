@@ -4,10 +4,10 @@ import {
   Bar, BarChart, LabelList, ResponsiveContainer, XAxis, YAxis, Tooltip,
 } from 'recharts';
 import {
-  Activity, AlertTriangle, Building2, Clock, Hospital, LayoutDashboard,
+  Activity, AlertTriangle, Building2, Clock, Hospital, LayoutDashboard, Map,
   TrendingUp, UserPlus, Users, type LucideIcon,
 } from 'lucide-react';
-import { fetchDashboardKpis } from '../api/client';
+import { fetchDashboardKpis, fetchFileActiveByRegion } from '../api/client';
 import { GeoFilter, GeoScope } from '../components/GeoFilter';
 import { Kpi, formatInt, formatPercent } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
@@ -28,6 +28,11 @@ export function Dashboard() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['dashboardKpis', scope],
     queryFn: () => fetchDashboardKpis(scope),
+  });
+
+  const regions = useQuery({
+    queryKey: ['fileActiveByRegion', scope],
+    queryFn: () => fetchFileActiveByRegion(scope),
   });
 
   const periodLabel = new Date().toLocaleDateString('fr-FR',
@@ -153,6 +158,48 @@ export function Dashboard() {
           ) : null}
         </section>
       </div>
+
+      {/* Répartition géographique de la file active. Bar chart horizontal
+          plutôt qu'une carte SVG pour la v1 : aussi parlant pour le décideur
+          et zéro asset à maintenir. La vraie carte CI viendra plus tard. */}
+      {regions.data && regions.data.length > 1 && (
+        <section className="card p-5 mt-3">
+          <header className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-ink flex items-center gap-2">
+              <span className="h-7 w-7 rounded-md bg-sigdep-50 text-sigdep-700
+                               flex items-center justify-center">
+                <Map className="h-4 w-4" />
+              </span>
+              File active par région &middot; 12 mois glissants
+            </h3>
+            <span className="text-xs text-ink-muted">
+              {regions.data.length} régions
+            </span>
+          </header>
+          <div style={{ height: Math.max(220, regions.data.length * 28 + 40) }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={regions.data}
+                layout="vertical"
+                margin={{ top: 8, right: 64, left: 8, bottom: 8 }}
+              >
+                <XAxis type="number" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                <YAxis type="category" dataKey="regionName"
+                       width={140}
+                       tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                <Tooltip
+                  contentStyle={{ borderRadius: 6, fontSize: 12, border: '1px solid #e2e8f0' }}
+                  formatter={(v: number) => [formatInt(v), 'Patients']}
+                />
+                <Bar dataKey="count" fill="#009d8e" radius={[0, 3, 3, 0]}>
+                  <LabelList dataKey="count" position="right"
+                             style={{ fill: '#475569', fontSize: 11, fontWeight: 500 }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

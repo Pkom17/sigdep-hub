@@ -59,6 +59,15 @@ export function fetchDashboardKpis(scope: GeoScopeQ = {}) {
   return get<DashboardKpis>(`/api/v1/dashboard/kpis${qs ? '?' + qs : ''}`);
 }
 
+export type RegionBucket = { regionId: number; regionName: string; count: number };
+
+export function fetchFileActiveByRegion(scope: GeoScopeQ = {}) {
+  const params = new URLSearchParams();
+  appendScope(params, scope);
+  const qs = params.toString();
+  return get<RegionBucket[]>(`/api/v1/dashboard/file-active-by-region${qs ? '?' + qs : ''}`);
+}
+
 // --- Patients --------------------------------------------------------------
 
 export type PatientRow = {
@@ -393,6 +402,7 @@ export type QuarterRange = {
   start: string;
   end: string;
 };
+export type MsdBucket = { msd: string; count: number };
 export type PepfarReport = {
   period: QuarterRange;
   txNew: Disaggregated;
@@ -401,6 +411,7 @@ export type PepfarReport = {
   hts: Hts;
   pmtct: Pmtct;
   tbPrev: Pair;
+  txCurrByMsd: MsdBucket[];
 };
 
 export function fetchPepfarReport(fy: number, q: number, scope: GeoScopeQ) {
@@ -726,7 +737,7 @@ export async function downloadPtmeChildCsv(months: number, scope: GeoScopeQ): Pr
 
 // --- Clinic (suivi clinique) -----------------------------------------------
 
-export type MonthlyCount = { month: string; count: number };
+export type MonthlyCount = { month: string; count: number; dispensations: number; expected: number };
 
 export type ClinicSummary = {
   visitsAllTime: number;

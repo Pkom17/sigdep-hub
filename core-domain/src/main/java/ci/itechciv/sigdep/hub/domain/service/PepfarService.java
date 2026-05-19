@@ -70,7 +70,61 @@ public class PepfarService {
                 txPvls(qr, regionId, districtId, siteId),
                 hts(qr, regionId, districtId, siteId),
                 pmtct(qr, regionId, districtId, siteId),
-                tbPrev(qr, regionId, districtId, siteId));
+                tbPrev(qr, regionId, districtId, siteId),
+                txCurrByMsd(qr, regionId, districtId, siteId));
+    }
+
+    // ---------- TX_CURR by MSD (modèle de soin) ------------------------------
+
+    /**
+     * File active désagrégée par modèle de soins différenciés (MSD), tel
+     * que captée sur la dernière visite avant la fin du trimestre :
+     * Standard / IVSA / Échec thérapeutique / (non renseigné).
+     *
+     * Donne une vue stratégique du portefeuille de prise en charge : quel
+     * % de la cohorte est sur le modèle IVSA (patients non stables) vs
+     * stable (Standard) vs en échec.
+     */
+    private List<MsdBucket> txCurrByMsd(QuarterRange qr, Long regionId, Long districtId, Long siteId) {
+        String region = geoJoinFor("p", regionId, districtId, siteId);
+
+        String sql =
+                "WITH last_visit AS ("
+                + "  SELECT DISTINCT ON (v.patient_id)"
+                + "         v.patient_id, v.ivsa_msd_code"
+                + "  FROM core.visits v"
+                + "  WHERE v.voided = FALSE AND v.visit_date <= ?"
+                + "  ORDER BY v.patient_id, v.visit_date DESC"
+                + ")"
+                + " SELECT COALESCE(lv.ivsa_msd_code, '(non renseigné)') AS msd,"
+                + "        count(*) AS n"
+                + " FROM core.patients p"
+                + " JOIN core.treatment_initiations ti ON ti.patient_id = p.id"
+                + "   AND ti.voided = FALSE"
+                + "   AND COALESCE(ti.arv_init_date, ti.enrollment_date) <= ?"
+                + " LEFT JOIN last_visit lv ON lv.patient_id = p.id"
+                + region
+                + " WHERE p.voided = FALSE"
+                + "   AND NOT EXISTS ("
+                + "     SELECT 1 FROM core.closures c"
+                + "     WHERE c.patient_id = p.id AND c.voided = FALSE"
+                + "       AND c.closure_date <= ?)"
+                + " GROUP BY msd"
+                + " ORDER BY n DESC";
+
+        List<Object> args = new ArrayList<>();
+        args.add(qr.end()); // last_visit watermark
+        args.add(qr.end()); // init <= end
+        Long g = geoArg(regionId, districtId, siteId);
+        if (g != null) args.add(g);
+        args.add(qr.end()); // closure <= end
+
+        // RowMapper rather than RowCallbackHandler to disambiguate the
+        // overloaded jdbc.query(sql, ..., args[]) — the lambda's empty
+        // return makes javac unable to pick between the two otherwise.
+        return jdbc.query(sql,
+                (rs, i) -> new MsdBucket(rs.getString("msd"), rs.getLong("n")),
+                args.toArray());
     }
 
     // ---------- TX_NEW --------------------------------------------------------
@@ -334,18 +388,20 @@ public class PepfarService {
     private Pair pmtctEid(QuarterRange qr, Long regionId, Long districtId, Long siteId) {
         String region = anonGeoJoin("c", regionId, districtId, siteId);
 
-        // Age band derived from birth date (months at end of quarter)
-        // simplified: we only band by "<2mo / 2-12mo / >12mo / unknown"
-        // would be cleaner, but for consistency with the other indicators
-        // we keep <15/15-24/... — every infant lands in <15 anyway.
-        String sql = "SELECT 'unknown' AS sex,"
+        // Infants born in the quarter, grouped by sex. Age band is forced
+        // to '<15' since every infant lands there anyway — keeps the
+        // disaggregation table layout consistent with the rest of the
+        // cascade. Numerator = subset with a PCR1 sample collected
+        // within 60 days of birth (early infant diagnosis).
+        String sql = "SELECT c.gender AS sex,"
                 + "        '<15' AS band,"
                 + "        count(*) AS denom,"
                 + "        count(*) FILTER (WHERE c.pcr1_sampling_date IS NOT NULL"
                 + "                          AND c.pcr1_sampling_date - c.birth_date <= 60) AS numer"
                 + " FROM core.ptme_children c" + region
                 + " WHERE c.voided = FALSE"
-                + "   AND c.birth_date BETWEEN ? AND ?";
+                + "   AND c.birth_date BETWEEN ? AND ?"
+                + " GROUP BY c.gender";
         return runDenomNumer(sql, buildArgs(regionId, districtId, siteId, qr.start(), qr.end()));
     }
 
@@ -531,6 +587,9 @@ public class PepfarService {
     /** PMTCT bundle — STAT (status known), ART (under ARV), EID (PCR1 <= 2 mo). */
     public record Pmtct(Pair stat, Pair art, Pair eid) {}
 
+    /** File active désagrégée par modèle de soins différenciés (MSD). */
+    public record MsdBucket(String msd, long count) {}
+
     public record PepfarReport(
             QuarterRange period,
             Disaggregated txNew,
@@ -538,6 +597,7 @@ public class PepfarService {
             TxPvls txPvls,
             Hts hts,
             Pmtct pmtct,
-            Pair tbPrev
+            Pair tbPrev,
+            List<MsdBucket> txCurrByMsd
     ) {}
 }

@@ -5,6 +5,9 @@ import {
   Bar,
   BarChart,
   LabelList,
+  Legend,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -188,12 +191,16 @@ function VisitsPanel({ months, scope }: { months: number; scope: GeoScope }) {
         </div>
       )}
 
-      {/* Monthly visits chart */}
+      {/* Visits vs Dispensations — détecte les gaps de couverture ARV
+          (un mois avec beaucoup de visites mais peu de dispensations
+          signale une rupture, ou inversement). */}
       <div className="card p-4 mb-6">
-        <h3 className="text-sm font-medium mb-4">Visites par mois</h3>
-        <div className="h-48">
+        <h3 className="text-sm font-medium mb-4">
+          Visites cliniques vs dispensations ARV — par mois
+        </h3>
+        <div className="h-56">
           {summary.isLoading ? (
-            <ChartSkeleton height="h-48" />
+            <ChartSkeleton height="h-56" />
           ) : !summary.data || summary.data.monthly.length === 0 ? (
             <div className="h-full flex items-center justify-center text-ink-muted text-sm">
               —
@@ -212,13 +219,49 @@ function VisitsPanel({ months, scope }: { months: number; scope: GeoScope }) {
                 <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
                 <Tooltip
                   contentStyle={{ borderRadius: 6, fontSize: 12 }}
-                  formatter={(v) => [formatInt(v as number), "Visites"]}
+                  formatter={(v, name) => [formatInt(v as number), name]}
                 />
-                <Bar dataKey="count" fill="#009d8e" radius={[3, 3, 0, 0]}>
-                  <LabelList dataKey="count" position="top"
-                             style={{ fill: '#475569', fontSize: 11, fontWeight: 500 }} />
-                </Bar>
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="count" name="Visites" fill="#009d8e" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="dispensations" name="Dispensations" fill="#7c3aed" radius={[3, 3, 0, 0]} />
               </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
+      {/* Évolution attendus vs venus — détecte les perdus de vue précoces :
+          si le nombre attendu (= prochaine_visite tombant dans le mois)
+          s'éloigne durablement du nombre venu, il y a fuite. */}
+      <div className="card p-4 mb-6">
+        <h3 className="text-sm font-medium mb-4">
+          Patients attendus vs venus — par mois
+        </h3>
+        <div className="h-56">
+          {summary.isLoading ? (
+            <ChartSkeleton height="h-56" />
+          ) : !summary.data || summary.data.monthly.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-ink-muted text-sm">—</div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={summary.data.monthly}
+                margin={{ top: 24, right: 16, left: 0, bottom: 0 }}
+              >
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                <Tooltip
+                  contentStyle={{ borderRadius: 6, fontSize: 12 }}
+                  formatter={(v, name) => [formatInt(v as number), name]}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="expected" name="Attendus"
+                      stroke="#94a3b8" strokeWidth={2} strokeDasharray="4 4"
+                      dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="count" name="Venus"
+                      stroke="#009d8e" strokeWidth={2}
+                      dot={{ r: 3 }} />
+              </LineChart>
             </ResponsiveContainer>
           )}
         </div>

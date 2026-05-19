@@ -1,8 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import {
+  Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip,
+} from "recharts";
+import {
   Disaggregated,
   Hts,
+  MsdBucket,
   Pair,
   TxPvls,
   downloadPepfarCsv,
@@ -198,6 +202,16 @@ export function Pepfar() {
             hint={`${formatInt(report.data.tbPrev.numerator.total)} terminés / ${formatInt(report.data.tbPrev.denominator.total)}`}
             hintTone="positive"
           />
+        </div>
+      )}
+
+      {/* File active par modèle de soins différenciés (donut) */}
+      {report.data && report.data.txCurrByMsd.length > 0 && (
+        <div className="card p-4 mb-6">
+          <h3 className="text-sm font-medium mb-3">
+            File active par modèle de soin
+          </h3>
+          <MsdDonut buckets={report.data.txCurrByMsd} />
         </div>
       )}
 
@@ -546,6 +560,68 @@ function HtsTable({ hts }: { hts: Hts }) {
           </tr>
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/**
+ * Donut showing the active cohort split by MSD (Modèle de soins
+ * différenciés) : Standard / IVSA / Échec thérapeutique. Empty buckets
+ * are filtered out so the legend stays compact.
+ */
+const MSD_COLOURS: Record<string, string> = {
+  "Standard":             "#009d8e",
+  "IVSA":                 "#f59e0b",
+  "Échec thérapeutique":  "#dc2626",
+  "(non renseigné)":      "#94a3b8",
+};
+
+function MsdDonut({ buckets }: { buckets: MsdBucket[] }) {
+  const total = buckets.reduce((s, b) => s + b.count, 0);
+  const data = buckets.map((b) => ({
+    name: b.msd,
+    value: b.count,
+    color: MSD_COLOURS[b.msd] ?? "#64748b",
+  }));
+  return (
+    <div className="flex items-center gap-6">
+      <div className="h-56 flex-1 min-w-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              innerRadius={45}
+              outerRadius={80}
+              paddingAngle={2}
+            >
+              {data.map((entry) => (
+                <Cell key={entry.name} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{ borderRadius: 6, fontSize: 12 }}
+              formatter={(v: number, _name, p) => {
+                const pct = total > 0 ? Math.round((v / total) * 100) : 0;
+                return [`${formatInt(v)} (${pct}%)`, p.payload.name];
+              }}
+            />
+            <Legend
+              verticalAlign="middle"
+              align="right"
+              layout="vertical"
+              wrapperStyle={{ fontSize: 12 }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="text-sm">
+        <div className="text-ink-muted text-xs uppercase mb-1">Total cohorte</div>
+        <div className="text-2xl font-semibold tabular-nums">
+          {formatInt(total)}
+        </div>
+      </div>
     </div>
   );
 }

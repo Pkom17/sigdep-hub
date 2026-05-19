@@ -118,7 +118,13 @@ public class ClinicService {
                 (rs, i) -> new Bucket(rs.getString("k"), rs.getLong("n")),
                 geoArgs(regionId, districtId, siteId, since));
 
-        // Monthly visit count
+        // Monthly visit + dispensation counts side-by-side (used by the
+        // Visites tab to compare clinical follow-up with pharmacy
+        // refills — a gap signals a coverage hole).
+        // We use 'd' as the alias for core.dispensations to avoid
+        // colliding with 'v' used by visits.
+        String regionDisp = region.replace(" v.", " d.")
+                                  .replace("= v.site_id", "= d.site_id");
         String monthlySql = "WITH months AS ("
                 + " SELECT generate_series("
                 + "   date_trunc('month', NOW()) - make_interval(months => ? - 1),"
@@ -129,16 +135,34 @@ public class ClinicService {
                 + "   (SELECT count(*) FROM core.visits v" + region
                 + "    WHERE v.voided = FALSE"
                 + "      AND v.visit_date >= m.month_start"
-                + "      AND v.visit_date <  m.month_start + INTERVAL '1 month') AS n"
+                + "      AND v.visit_date <  m.month_start + INTERVAL '1 month') AS n_visits,"
+                + "   (SELECT count(*) FROM core.dispensations d" + regionDisp
+                + "    WHERE d.voided = FALSE"
+                + "      AND d.dispensation_date >= m.month_start"
+                + "      AND d.dispensation_date <  m.month_start + INTERVAL '1 month') AS n_disp,"
+                // "expected" = nb de RDV programmés tombant dans le mois,
+                // dérivé de visits.next_visit_date posé sur une visite
+                // précédente. Permet de comparer attendus vs venus pour
+                // détecter les perdus-de-vue précoces.
+                + "   (SELECT count(*) FROM core.visits v" + region
+                + "    WHERE v.voided = FALSE"
+                + "      AND v.next_visit_date >= m.month_start"
+                + "      AND v.next_visit_date <  m.month_start + INTERVAL '1 month') AS n_expected"
                 + " FROM months m ORDER BY m.month_start";
 
         Long g = geoArg(regionId, districtId, siteId);
         List<Object> mArgs = new ArrayList<>();
         mArgs.add(months);
-        if (g != null) mArgs.add(g);
+        if (g != null) mArgs.add(g);            // visits sub-query
+        if (g != null) mArgs.add(g);            // dispensations sub-query
+        if (g != null) mArgs.add(g);            // expected (visits.next_visit_date) sub-query
 
         List<MonthlyCount> monthly = jdbc.query(monthlySql,
-                (rs, i) -> new MonthlyCount(rs.getString("label"), rs.getLong("n")),
+                (rs, i) -> new MonthlyCount(
+                        rs.getString("label"),
+                        rs.getLong("n_visits"),
+                        rs.getLong("n_disp"),
+                        rs.getLong("n_expected")),
                 mArgs.toArray());
 
         return new ClinicSummary(
@@ -444,7 +468,17 @@ public class ClinicService {
             int periodMonths
     ) {}
 
-    public record MonthlyCount(String month, long count) {}
+    /**
+     * Monthly volume bucket. {@code count} is the visits volume (kept
+     * named like this for backward compatibility with the chart) ;
+     * {@code dispensations} is the corresponding ARV refill volume so
+     * the Clinique page can plot the two side-by-side and detect
+     * coverage gaps. {@code expected} is the number of visits planned
+     * for this month (derived from a previous visit's next_visit_date)
+     * so the page can compare expected vs attended — a precocious
+     * lost-to-follow-up signal.
+     */
+    public record MonthlyCount(String month, long count, long dispensations, long expected) {}
     public record Bucket(String label, long count) {}
 
     public record VisitRow(
