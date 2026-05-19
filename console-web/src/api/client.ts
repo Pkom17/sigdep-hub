@@ -52,8 +52,11 @@ export type DashboardKpis = {
   syncAlerts: SyncAlerts;
 };
 
-export function fetchDashboardKpis() {
-  return get<DashboardKpis>('/api/v1/dashboard/kpis');
+export function fetchDashboardKpis(scope: GeoScopeQ = {}) {
+  const params = new URLSearchParams();
+  appendScope(params, scope);
+  const qs = params.toString();
+  return get<DashboardKpis>(`/api/v1/dashboard/kpis${qs ? '?' + qs : ''}`);
 }
 
 // --- Patients --------------------------------------------------------------

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bar, BarChart, LabelList, ResponsiveContainer, XAxis, YAxis, Tooltip,
@@ -7,6 +8,7 @@ import {
   TrendingUp, UserPlus, Users, type LucideIcon,
 } from 'lucide-react';
 import { fetchDashboardKpis } from '../api/client';
+import { GeoFilter, GeoScope } from '../components/GeoFilter';
 import { Kpi, formatInt, formatPercent } from '../components/Kpi';
 import { PageHeader } from '../components/PageHeader';
 import {
@@ -21,20 +23,31 @@ function formatTime(iso: string | null): string {
 }
 
 export function Dashboard() {
+  const [scope, setScope] = useState<GeoScope>({});
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['dashboardKpis'],
-    queryFn: fetchDashboardKpis,
+    queryKey: ['dashboardKpis', scope],
+    queryFn: () => fetchDashboardKpis(scope),
   });
 
   const periodLabel = new Date().toLocaleDateString('fr-FR',
     { month: 'long', year: 'numeric' });
+
+  // Subtitle reflects the active scope so a SITE_USER sees "Périmètre : Site"
+  // instead of the stale "National" label.
+  const scopeLabel =
+    scope.siteId     ? 'Site'
+    : scope.districtId ? 'District'
+    : scope.regionId   ? 'Région'
+    : 'National';
 
   return (
     <div className="px-6 py-6">
       <PageHeader
         icon={LayoutDashboard}
         title="Vue d’ensemble"
-        subtitle={`Périmètre : National · ${periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1)}`} />
+        subtitle={`Périmètre : ${scopeLabel} · ${periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1)}`}
+        right={<GeoFilter value={scope} onChange={setScope} />} />
 
       {/* KPI row */}
       {isLoading ? <KpiRowSkeleton /> : (
