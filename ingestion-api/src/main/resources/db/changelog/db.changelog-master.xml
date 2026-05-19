@@ -37,5 +37,6 @@
     <include file="db/changelog/v1.0/028-add-visits-tpt-columns.xml"/>
     <include file="db/changelog/v1.0/029-create-sync-batch.xml"/>
     <include file="db/changelog/v1.0/030-create-rejected-record.xml"/>
+    <include file="db/changelog/v1.0/031-create-screenings.xml"/>
 
 </databaseChangeLog>

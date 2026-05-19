@@ -479,6 +479,79 @@ export async function downloadTptCsv(months: number, scope: GeoScopeQ): Promise<
   await downloadCsv(url, `tpt-${months}m.csv`);
 }
 
+// --- Dépistage (HIV screening) --------------------------------------------
+
+export type ScreeningSummary = {
+  totalAllTime: number;
+  screenedInPeriod: number;
+  positiveInPeriod: number;
+  negativeInPeriod: number;
+  positivityPct: number | null;
+  yearly: YearBucket[];
+  results: Bucket[];
+  populations: Bucket[];
+  reasons: Bucket[];
+  genders: Bucket[];
+  periodMonths: number;
+};
+
+export type ScreeningRecord = {
+  id: number;
+  screeningCode: string | null;
+  screeningDate: string | null;
+  resultAnnouncingDate: string | null;
+  gender: string | null;
+  age: number | null;
+  populationType: string | null;
+  screeningReason: string | null;
+  finalResult: string | null;
+  retesting: boolean | null;
+  screeningSiteType: string | null;
+  screeningPost: string | null;
+  siteCode: string;
+  siteName: string;
+};
+
+export type ScreeningRecordPage = {
+  content: ScreeningRecord[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export function fetchScreeningSummary(months: number, scope: GeoScopeQ) {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  appendScope(params, scope);
+  return get<ScreeningSummary>(`/api/v1/screenings/summary?${params}`);
+}
+
+export function fetchScreeningRecords(opts: {
+  months: number;
+  regionId?: number;
+  districtId?: number;
+  siteId?: number;
+  sort?: SortQ;
+  page?: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  params.set('months', String(opts.months));
+  appendScope(params, opts);
+  appendSort(params, opts.sort ?? null);
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<ScreeningRecordPage>(`/api/v1/screenings/records?${params}`);
+}
+
+export async function downloadScreeningCsv(months: number, scope: GeoScopeQ): Promise<void> {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  appendScope(params, scope);
+  const url = `/api/v1/screenings/records.csv?${params}`;
+  await downloadCsv(url, `depistage-${months}m.csv`);
+}
+
 // --- Clinic (suivi clinique) -----------------------------------------------
 
 export type MonthlyCount = { month: string; count: number };

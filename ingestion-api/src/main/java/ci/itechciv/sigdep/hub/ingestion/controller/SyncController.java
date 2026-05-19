@@ -8,6 +8,7 @@ import ci.itechciv.sigdep.contracts.dto.ClosureDto;
 import ci.itechciv.sigdep.contracts.dto.DispensationDto;
 import ci.itechciv.sigdep.contracts.dto.LabResultDto;
 import ci.itechciv.sigdep.contracts.dto.PatientDto;
+import ci.itechciv.sigdep.contracts.dto.ScreeningDto;
 import ci.itechciv.sigdep.contracts.dto.TptRecordDto;
 import ci.itechciv.sigdep.contracts.dto.TreatmentInitiationDto;
 import ci.itechciv.sigdep.contracts.dto.VisitDto;
@@ -19,6 +20,7 @@ import ci.itechciv.sigdep.hub.ingestion.writer.ClosureWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.InitiationWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.LabResultWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.PatientWriter;
+import ci.itechciv.sigdep.hub.ingestion.writer.ScreeningWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.TptWriter;
 import ci.itechciv.sigdep.hub.ingestion.writer.VisitWriter;
 import java.time.Instant;
@@ -46,6 +48,7 @@ public class SyncController {
     private final ClosureWriter closureWriter;
     private final LabResultWriter labResultWriter;
     private final TptWriter tptWriter;
+    private final ScreeningWriter screeningWriter;
     private final SyncBatchLogger auditLog;
 
     public SyncController(SiteResolver siteResolver,
@@ -56,6 +59,7 @@ public class SyncController {
                           ClosureWriter closureWriter,
                           LabResultWriter labResultWriter,
                           TptWriter tptWriter,
+                          ScreeningWriter screeningWriter,
                           SyncBatchLogger auditLog) {
         this.siteResolver = siteResolver;
         this.sites = sites;
@@ -65,6 +69,7 @@ public class SyncController {
         this.closureWriter = closureWriter;
         this.labResultWriter = labResultWriter;
         this.tptWriter = tptWriter;
+        this.screeningWriter = screeningWriter;
         this.auditLog = auditLog;
     }
 
@@ -182,6 +187,26 @@ public class SyncController {
             var r = tptWriter.upsertBatch(site.getId(), batch.records());
             sites.touchLastSyncAt(site.getId());
             auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors(), site.getId(), "tpt_records");
+            return ResponseEntity.ok(new SyncBatchResponse(
+                    batch.batchId(), r.accepted(), r.rejected(), r.errors()));
+        } catch (RuntimeException ex) {
+            auditLog.fail(auditId, t0, ex);
+            throw ex;
+        }
+    }
+
+    @PostMapping("/screenings")
+    public ResponseEntity<SyncBatchResponse> ingestScreenings(@RequestBody SyncBatchRequest<ScreeningDto> batch) {
+        Site site = siteResolver.resolve(batch.siteCode(), null);
+        log.info("Ingesting {} screenings for site {} (batch {})",
+                batch.records().size(), site.getCode(), batch.batchId());
+        Instant t0 = Instant.now();
+        long auditId = auditLog.start(batch.batchId(), site.getId(), site.getCode(),
+                "screenings", batch.records().size());
+        try {
+            var r = screeningWriter.upsertBatch(site.getId(), batch.records());
+            sites.touchLastSyncAt(site.getId());
+            auditLog.finish(auditId, t0, r.accepted(), r.rejected(), r.errors(), site.getId(), "screenings");
             return ResponseEntity.ok(new SyncBatchResponse(
                     batch.batchId(), r.accepted(), r.rejected(), r.errors()));
         } catch (RuntimeException ex) {
