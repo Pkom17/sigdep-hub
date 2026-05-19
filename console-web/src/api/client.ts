@@ -552,6 +552,150 @@ export async function downloadScreeningCsv(months: number, scope: GeoScopeQ): Pr
   await downloadCsv(url, `depistage-${months}m.csv`);
 }
 
+// --- PTME -----------------------------------------------------------------
+
+export type PtmeMotherSummary = {
+  totalAllTime: number;
+  inPeriod: number;
+  spousalScreened: number;
+  spousalPositive: number;
+  spousalCoveragePct: number | null;
+  yearly: YearBucket[];
+  outcomes: Bucket[];
+  arvAtRegistering: Bucket[];
+  periodMonths: number;
+};
+
+export type PtmeMotherRecord = {
+  id: number;
+  sourceUuid: string;
+  pregnantNumber: string | null;
+  hivCareNumber: string | null;
+  screeningNumber: string | null;
+  age: number | null;
+  maritalStatus: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  estimatedDeliveryDate: string | null;
+  arvStatusAtRegistering: string | null;
+  pregnancyOutcome: string | null;
+  spousalScreening: string | null;
+  spousalScreeningResult: string | null;
+  deliveryType: string | null;
+  siteCode: string;
+  siteName: string;
+};
+
+export type PtmeMotherPage = {
+  content: PtmeMotherRecord[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export type PtmeChildSummary = {
+  totalAllTime: number;
+  inPeriod: number;
+  anyPositive: number;
+  prophylaxisGiven: number;
+  positivityPct: number | null;
+  yearly: YearBucket[];
+  followupResults: Bucket[];
+  pcr1: Bucket[];
+  periodMonths: number;
+};
+
+export type PtmeChildRecord = {
+  id: number;
+  sourceUuid: string;
+  motherSourceUuid: string | null;
+  childFollowupNumber: string | null;
+  birthDate: string | null;
+  gender: string | null;
+  arvProphylaxisGiven: string | null;
+  arvProphylaxisGivenDate: string | null;
+  pcr1Result: string | null;
+  pcr2Result: string | null;
+  pcr3Result: string | null;
+  hivSerology1Result: string | null;
+  hivSerology2Result: string | null;
+  followupResult: string | null;
+  followupResultDate: string | null;
+  siteCode: string;
+  siteName: string;
+};
+
+export type PtmeChildPage = {
+  content: PtmeChildRecord[];
+  total: number;
+  page: number;
+  size: number;
+};
+
+export function fetchPtmeMotherSummary(months: number, scope: GeoScopeQ) {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  appendScope(params, scope);
+  return get<PtmeMotherSummary>(`/api/v1/ptme/mothers/summary?${params}`);
+}
+
+export function fetchPtmeMotherRecords(opts: {
+  months: number;
+  regionId?: number;
+  districtId?: number;
+  siteId?: number;
+  sort?: SortQ;
+  page?: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  params.set('months', String(opts.months));
+  appendScope(params, opts);
+  appendSort(params, opts.sort ?? null);
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<PtmeMotherPage>(`/api/v1/ptme/mothers/records?${params}`);
+}
+
+export async function downloadPtmeMotherCsv(months: number, scope: GeoScopeQ): Promise<void> {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  appendScope(params, scope);
+  await downloadCsv(`/api/v1/ptme/mothers/records.csv?${params}`, `ptme-meres-${months}m.csv`);
+}
+
+export function fetchPtmeChildSummary(months: number, scope: GeoScopeQ) {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  appendScope(params, scope);
+  return get<PtmeChildSummary>(`/api/v1/ptme/children/summary?${params}`);
+}
+
+export function fetchPtmeChildRecords(opts: {
+  months: number;
+  regionId?: number;
+  districtId?: number;
+  siteId?: number;
+  sort?: SortQ;
+  page?: number;
+  size?: number;
+}) {
+  const params = new URLSearchParams();
+  params.set('months', String(opts.months));
+  appendScope(params, opts);
+  appendSort(params, opts.sort ?? null);
+  params.set('page', String(opts.page ?? 0));
+  params.set('size', String(opts.size ?? 50));
+  return get<PtmeChildPage>(`/api/v1/ptme/children/records?${params}`);
+}
+
+export async function downloadPtmeChildCsv(months: number, scope: GeoScopeQ): Promise<void> {
+  const params = new URLSearchParams();
+  params.set('months', String(months));
+  appendScope(params, scope);
+  await downloadCsv(`/api/v1/ptme/children/records.csv?${params}`, `ptme-enfants-${months}m.csv`);
+}
+
 // --- Clinic (suivi clinique) -----------------------------------------------
 
 export type MonthlyCount = { month: string; count: number };
