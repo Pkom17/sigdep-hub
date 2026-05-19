@@ -196,8 +196,12 @@ function VisitsPanel({ months, scope }: { months: number; scope: GeoScope }) {
           signale une rupture, ou inversement). */}
       <div className="card p-4 mb-6">
         <h3 className="text-sm font-medium mb-4">
-          Visites cliniques vs dispensations ARV — par mois
+          Visites vs dispensations ARV — par mois
         </h3>
+        <p className="text-xs text-ink-muted mb-3">
+          Dispensations = visites avec un nombre de jours de traitement ARV
+          renseigné (la dispensation est captée sur la visite elle-même).
+        </p>
         <div className="h-56">
           {summary.isLoading ? (
             <ChartSkeleton height="h-56" />
