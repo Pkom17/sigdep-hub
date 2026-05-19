@@ -43,6 +43,8 @@ services:
     depends_on: [postgres]
     volumes:
       - ./keycloak/realm-sigdep.json:/opt/keycloak/data/import/realm-sigdep.json:ro
+      # SIGDEP custom login theme.
+      - ./keycloak/themes/sigdep:/opt/keycloak/themes/sigdep:ro
 
   console-api:
     # Replace with the actual published image (e.g. ghcr.io/itechciv/sigdep-console-api:<tag>).
