@@ -92,6 +92,7 @@ export type PatientDetail = {
   educationLevel: string | null;
   maritalStatus: string | null;
   birthPlace: string | null;
+  religion: string | null;
   siteCode: string;
   siteName: string;
   identifiers: string[];
