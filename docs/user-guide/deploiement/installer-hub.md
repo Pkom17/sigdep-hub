@@ -22,21 +22,24 @@ console-api + nginx` qui répond sur une URL publique.
 
 ```
                   ┌─────────────┐
-        :443 ─────│ nginx (TLS) │──→ console-web (statique)
-                  └─────────────┘     ↓ /api/v1
-                                      ↓
-                            ┌──────────────────┐
-                            │   console-api    │──→ Postgres
-                            ├──────────────────┤      ↑
-       Agents ─── /api ────→│  ingestion-api   │──────┘
-                            ├──────────────────┤
-                            │     Keycloak     │──────┘
-                            └──────────────────┘
+        :443 ─────│ nginx (TLS) │
+                  └──────┬──────┘
+                         │ (reverse-proxy en HTTP interne)
+       ┌─────────────────┼──────────────────────┬───────────────┐
+       ▼                 ▼                      ▼               ▼
+ ┌──────────────┐  ┌────────────┐       ┌──────────────┐  ┌──────────┐
+ │ console-web  │  │ console-api│       │ingestion-api │  │ Keycloak │
+ │  (SPA nginx) │  │ /api/      │       │ /api/v1/sync │  │ /realms/ │
+ └──────────────┘  └─────┬──────┘       └──────┬───────┘  └────┬─────┘
+                         ▼                     ▼               ▼
+                       Postgres            Postgres        Postgres
 ```
 
-Tout est servi via nginx pour exposer un **seul** origin :
-`https://sigdep.pnls.ci/`. Les agents et la console-web parlent à
-cet origin ; nginx route en interne.
+Tout est servi via le nginx front pour exposer un **seul** origin :
+`https://sigdep.pnls.ci/`. Les agents et la console parlent à cet
+origin ; nginx route en interne vers les 4 conteneurs (`console-web`
+sert le SPA, `console-api` les écrans, `ingestion-api` les batches
+des agents, `keycloak` l'authentification).
 
 ## Étape 1 — Cloner le repo
 
@@ -70,10 +73,7 @@ PUBLIC_ORIGIN=https://sigdep.pnls.ci
 # pkom17 par itech-ci une fois la bascule officielle effectuée.
 CONSOLE_API_IMAGE=ghcr.io/pkom17/sigdep-console-api:1.0.2
 INGESTION_API_IMAGE=ghcr.io/pkom17/sigdep-ingestion-api:1.0.2
-# Note : docker-compose.prod.yml monte actuellement le bundle SPA depuis
-# infra/web/. Pour utiliser l'image console-web publiée à la place,
-# remplacer le service nginx par le conteneur ghcr.io/pkom17/sigdep-console-web
-# (changement structurel, à planifier hors pilote initial).
+CONSOLE_WEB_IMAGE=ghcr.io/pkom17/sigdep-console-web:1.0.2
 ```
 
 ## Étape 3 — Démarrer la stack

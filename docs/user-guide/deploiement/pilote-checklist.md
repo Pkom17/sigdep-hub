@@ -158,7 +158,7 @@ Choisir **un** mode parmi A / B / C selon le poste cible :
 | sigdep-sync (Windows) | ZIP attaché à la release | `https://github.com/<owner>/sigdep-sync/releases/tag/v<version>` |
 | sigdep-hub ingestion-api | Image GHCR | `ghcr.io/<owner>/sigdep-ingestion-api:<version>` |
 | sigdep-hub console-api | Image GHCR | `ghcr.io/<owner>/sigdep-console-api:<version>` |
-| sigdep-hub console-web | Image GHCR (publiée mais non câblée dans `docker-compose.prod.yml` v1 — voir installer-hub.md) | `ghcr.io/<owner>/sigdep-console-web:<version>` |
+| sigdep-hub console-web | Image GHCR | `ghcr.io/<owner>/sigdep-console-web:<version>` |
 
 `<owner>` vaut `pkom17` tant que la décision 0.4 n'est pas tranchée,
 puis `itech-ci` une fois la bascule effectuée.
