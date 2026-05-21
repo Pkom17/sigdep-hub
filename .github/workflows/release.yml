@@ -24,8 +24,8 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
-      packages: write
+      contents: write   # required to create the GitHub Release and upload assets
+      packages: write   # required to push to GHCR
 
     steps:
       - name: Resolve tag
@@ -165,11 +165,65 @@ jobs:
             org.opencontainers.image.title=SIGDEP-3 console web
             org.opencontainers.image.licenses=Proprietary
 
+      # -----------------------------------------------------------------
+      # Deploy bundle — tarball with everything a site admin needs to
+      # bring up the hub on a fresh server: docker-compose.prod.yml,
+      # nginx.prod.conf, Keycloak realm + theme, .env.example. The
+      # tarball is attached to the GitHub Release of this tag.
+      # -----------------------------------------------------------------
+      - name: Stage deploy bundle
+        run: |
+          PKG=sigdep-hub-deploy-${{ steps.tag.outputs.version }}
+          mkdir -p "deploy-build/$PKG"
+
+          # Compose + nginx + Keycloak realm/theme + env example
+          cp infra/docker-compose.prod.yml "deploy-build/$PKG/docker-compose.yml"
+          cp -r infra/nginx                "deploy-build/$PKG/nginx"
+          cp -r infra/keycloak             "deploy-build/$PKG/keycloak"
+          cp infra/.env.example            "deploy-build/$PKG/.env.example"
+
+          # Pin the image tags of this release inside the bundled .env.example
+          # so a site admin only has to fill in secrets, not version numbers.
+          sed -i \
+            -e "s|^CONSOLE_API_IMAGE=.*|CONSOLE_API_IMAGE=${{ steps.registry.outputs.registry }}/sigdep-console-api:${{ steps.tag.outputs.version }}|" \
+            -e "s|^INGESTION_API_IMAGE=.*|INGESTION_API_IMAGE=${{ steps.registry.outputs.registry }}/sigdep-ingestion-api:${{ steps.tag.outputs.version }}|" \
+            -e "s|^CONSOLE_WEB_IMAGE=.*|CONSOLE_WEB_IMAGE=${{ steps.registry.outputs.registry }}/sigdep-console-web:${{ steps.tag.outputs.version }}|" \
+            "deploy-build/$PKG/.env.example"
+
+          # Short README pointing at the official installation guide.
+          cp infra/deploy-bundle-README.md "deploy-build/$PKG/README.md"
+
+      - name: Create deploy tarball
+        run: |
+          PKG=sigdep-hub-deploy-${{ steps.tag.outputs.version }}
+          tar -C deploy-build -czf "${PKG}.tar.gz" "$PKG"
+          ls -lh "${PKG}.tar.gz"
+
+      - name: Create or update GitHub Release with deploy tarball
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=${{ steps.tag.outputs.tag }}
+          TAR=sigdep-hub-deploy-${{ steps.tag.outputs.version }}.tar.gz
+
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --notes "Release $TAG. See CHANGELOG.md for details." \
+              --verify-tag
+          fi
+
+          gh release upload "$TAG" "$TAR" --clobber
+
       - name: Summary
         run: |
-          echo "### Images published" >> $GITHUB_STEP_SUMMARY
+          echo "### Images publiées sur GHCR" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           for image in sigdep-ingestion-api sigdep-console-api sigdep-console-web ; do
             echo "- \`${{ steps.registry.outputs.registry }}/$image:${{ steps.tag.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
             echo "- \`${{ steps.registry.outputs.registry }}/$image:latest\`" >> $GITHUB_STEP_SUMMARY
           done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Bundle de déploiement" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- \`sigdep-hub-deploy-${{ steps.tag.outputs.version }}.tar.gz\` attaché à la release [${{ steps.tag.outputs.tag }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.tag.outputs.tag }})" >> $GITHUB_STEP_SUMMARY

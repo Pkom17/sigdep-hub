@@ -3,6 +3,26 @@
 Le format suit [Keep a Changelog](https://keepachangelog.com/) et la
 plateforme adhère à [Semantic Versioning](https://semver.org/).
 
+## [1.0.3] — 2026-05-21
+
+### Ajouté
+
+- **Conteneur console-web câblé dans la stack prod** : le SPA est
+  désormais servi par l'image GHCR `sigdep-console-web` derrière le
+  nginx front (plus de bundle à monter depuis le hôte).
+- **Bundle de déploiement** : un tarball
+  `sigdep-hub-deploy-<version>.tar.gz` est attaché à chaque release
+  GitHub, contenant docker-compose, nginx, realm Keycloak, thème et
+  `.env.example`. Plus de `git clone` côté serveur.
+
+### Documentation
+
+- Guide [installer-hub.md](docs/user-guide/deploiement/installer-hub.md)
+  réécrit autour du bundle de release.
+- README racine et 3 READMEs voisins (sync, contracts) traduits en
+  français.
+- Owners GHCR figés sur `ghcr.io/itech-ci/sigdep-*` dans toute la doc.
+
 ## [1.0.0] — 2026-05-21
 
 Première release fonctionnelle de SIGDEP-3. Plateforme complète pour

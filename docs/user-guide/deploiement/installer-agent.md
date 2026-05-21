@@ -146,8 +146,8 @@ INFO  Flushed Y batch(es) for ENTITY ...
 # Mode B — Docker
 
 L'image officielle est publiée sur GitHub Container Registry :
-`ghcr.io/<owner>/sigdep-sync:<tag>` (par exemple
-`ghcr.io/pkom17/sigdep-sync:1.0.1` pour la version de test).
+`ghcr.io/itech-ci/sigdep-sync:<tag>` (par exemple
+`ghcr.io/itech-ci/sigdep-sync:1.0.3`).
 
 ## B.1 — Installer Docker
 

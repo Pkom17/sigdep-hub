@@ -15,7 +15,7 @@ sur N sites ». À cocher au fur et à mesure ; chaque section indique le
 | 0.1 | URL publique du hub (ex. `sigdep-test.sante.gouv.ci`) | PNLS + DSI | ☐ |
 | 0.2 | Hébergeur du hub (serveur ministère / cloud) | PNLS + DSI | ☐ |
 | 0.3 | Liste des sites pilotes (1-2) avec contact IT + référent clinique | PNLS | ☐ |
-| 0.4 | Registre GHCR officiel : laisser sur fork `Pkom17` ou basculer sur `ITECH-CI` | I-TECH CI | ☐ |
+| 0.4 | ~~Registre GHCR officiel~~ — figé sur `ITECH-CI`. Images publiées sur `ghcr.io/itech-ci/sigdep-*` | I-TECH CI | ✅ |
 | 0.5 | Visibilité des packages GHCR : privée (token requis) ou publique | I-TECH CI | ☐ |
 | 0.6 | Politique de version : tag par site ou `:latest` partagé | I-TECH CI | ☐ |
 
@@ -154,11 +154,9 @@ Choisir **un** mode parmi A / B / C selon le poste cible :
 
 | Composant | Type | URL |
 |-----------|------|-----|
-| sigdep-sync (Linux/Docker) | Image GHCR | `ghcr.io/<owner>/sigdep-sync:<version>` |
-| sigdep-sync (Windows) | ZIP attaché à la release | `https://github.com/<owner>/sigdep-sync/releases/tag/v<version>` |
-| sigdep-hub ingestion-api | Image GHCR | `ghcr.io/<owner>/sigdep-ingestion-api:<version>` |
-| sigdep-hub console-api | Image GHCR | `ghcr.io/<owner>/sigdep-console-api:<version>` |
-| sigdep-hub console-web | Image GHCR | `ghcr.io/<owner>/sigdep-console-web:<version>` |
-
-`<owner>` vaut `pkom17` tant que la décision 0.4 n'est pas tranchée,
-puis `itech-ci` une fois la bascule effectuée.
+| sigdep-sync (Linux/Docker) | Image GHCR | `ghcr.io/itech-ci/sigdep-sync:<version>` |
+| sigdep-sync (Windows) | ZIP attaché à la release | `https://github.com/ITECH-CI/sigdep-sync/releases/tag/v<version>` |
+| sigdep-hub (bundle déploiement) | Tarball attaché à la release | `https://github.com/ITECH-CI/sigdep-hub/releases/tag/v<version>` |
+| sigdep-hub ingestion-api | Image GHCR | `ghcr.io/itech-ci/sigdep-ingestion-api:<version>` |
+| sigdep-hub console-api | Image GHCR | `ghcr.io/itech-ci/sigdep-console-api:<version>` |
+| sigdep-hub console-web | Image GHCR | `ghcr.io/itech-ci/sigdep-console-web:<version>` |
