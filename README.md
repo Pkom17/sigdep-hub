@@ -101,17 +101,51 @@ Open **http://localhost:9000** in your browser. Default users:
 
 ## Documentation
 
+### Pour les déployeurs et les utilisateurs (français)
+
+Le guide utilisateur, organisé par rôle, vit dans
+[`docs/user-guide/`](docs/user-guide/README.md). Entrées les plus
+utiles pour un pilote :
+
+- [Installer le hub](docs/user-guide/deploiement/installer-hub.md) —
+  procédure pas-à-pas pour la stack centrale.
+- [Installer un agent](docs/user-guide/deploiement/installer-agent.md) —
+  3 modes (systemd, Docker, Windows WinSW).
+- [Checklist de déploiement pilote](docs/user-guide/deploiement/pilote-checklist.md) —
+  tracker à cocher pour passer en production sur N sites.
+
+### Pour les développeurs (anglais)
+
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — module topology, auth model
   (JWT + AuthScope), the geo-scoping rules, how indicators are computed.
 - [docs/OPERATIONS.md](docs/OPERATIONS.md) — day-to-day commands (kcadm,
   Liquibase, run.sh), troubleshooting recipes for the issues we hit during
   build-up (CORS, user attributes, profile dev, …).
-- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — checklist for a real install
-  based on `infra/docker-compose.prod.yml`. TLS, secrets, backups.
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — historical install notes
+  based on `infra/docker-compose.prod.yml`. For a real install today,
+  follow the French [Installer le hub](docs/user-guide/deploiement/installer-hub.md)
+  instead — it reflects the GHCR-based release flow.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — git workflow, commit conventions,
   code style.
 - [infra/keycloak/README.md](infra/keycloak/README.md) — realm import,
   user-profile attributes, kcadm.sh snippets.
+
+## Container images
+
+Each `v*.*.*` tag triggers a release workflow that publishes three
+images to GHCR:
+
+```
+ghcr.io/<owner>/sigdep-ingestion-api:<version>
+ghcr.io/<owner>/sigdep-console-api:<version>
+ghcr.io/<owner>/sigdep-console-web:<version>
+```
+
+`<owner>` defaults to the GitHub user/org running the release; set the
+repo variable `IMAGE_REGISTRY` to override (for example
+`ghcr.io/itech-ci`). These tags are what the production
+docker-compose pulls — see
+[Installer le hub](docs/user-guide/deploiement/installer-hub.md).
 
 ## License
 

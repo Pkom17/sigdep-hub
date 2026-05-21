@@ -18,7 +18,7 @@ Choisissez l'entrée qui correspond à votre rôle :
 | Coordinateur national / régional / district | [Quickstart coordinateur](quickstart-coordinateur.md)                       |
 | Responsable de site (SITE_USER)           | [Quickstart site](quickstart-site-user.md)                                  |
 | Administrateur (IT_ADMIN / SUPER_ADMIN)   | [Gestion des utilisateurs](admin/gestion-utilisateurs.md) puis [Investiguer les rejets](admin/investiguer-rejets.md) |
-| Déployeur / installateur                  | [Installer le hub](deploiement/installer-hub.md) puis [Installer un agent](deploiement/installer-agent.md) |
+| Déployeur / installateur                  | [Installer le hub](deploiement/installer-hub.md) puis [Installer un agent](deploiement/installer-agent.md) ; pour un pilote, partir de la [checklist de déploiement](deploiement/pilote-checklist.md) |
 
 ## Documents de référence
 

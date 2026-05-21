@@ -65,10 +65,15 @@ KC_HOSTNAME=https://sigdep.pnls.ci
 KEYCLOAK_ADMIN_CLIENT_SECRET=<récupéré depuis Keycloak après import>
 PUBLIC_ORIGIN=https://sigdep.pnls.ci
 
-# Images publiées (à adapter aux tags réels)
-CONSOLE_API_IMAGE=ghcr.io/itechciv/sigdep-console-api:1.0.0
-INGESTION_API_IMAGE=ghcr.io/itechciv/sigdep-ingestion-api:1.0.0
-CONSOLE_WEB_IMAGE=ghcr.io/itechciv/sigdep-console-web:1.0.0
+# Images publiées sur GHCR par le workflow release.yml.
+# Owner = le compte GitHub qui pilote les releases ; remplacer
+# pkom17 par itech-ci une fois la bascule officielle effectuée.
+CONSOLE_API_IMAGE=ghcr.io/pkom17/sigdep-console-api:1.0.2
+INGESTION_API_IMAGE=ghcr.io/pkom17/sigdep-ingestion-api:1.0.2
+# Note : docker-compose.prod.yml monte actuellement le bundle SPA depuis
+# infra/web/. Pour utiliser l'image console-web publiée à la place,
+# remplacer le service nginx par le conteneur ghcr.io/pkom17/sigdep-console-web
+# (changement structurel, à planifier hors pilote initial).
 ```
 
 ## Étape 3 — Démarrer la stack
