@@ -1,0 +1,161 @@
+name: release
+
+# Triggers on v*.*.* tags. Builds the three hub artefacts (ingestion-api
+# fat jar, console-api fat jar, console-web static bundle), then builds
+# and pushes three Docker images to GHCR.
+#
+# Image target is read from the repository variable IMAGE_REGISTRY
+# (Repository → Settings → Variables → Actions). Defaults to
+# ghcr.io/<owner> so a fork pushes to its own namespace. Set
+# IMAGE_REGISTRY=ghcr.io/itech-ci in the upstream repo to flip to the
+# official location.
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g. v1.0.0)'
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || format('ghcr.io/{0}', github.repository_owner) }}
+
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: |
+          ref="${{ github.event.inputs.tag || github.ref_name }}"
+          ref="${ref#refs/tags/}"
+          echo "tag=$ref" >> $GITHUB_OUTPUT
+          echo "version=${ref#v}" >> $GITHUB_OUTPUT
+
+      - name: Checkout sigdep-hub
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+
+      - name: Checkout sigdep-contracts (matching tag if it exists)
+        id: ck-contracts-tag
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/sigdep-contracts
+          ref: ${{ steps.tag.outputs.tag }}
+          path: ../sigdep-contracts
+        continue-on-error: true
+
+      - name: Fallback to contracts master if tag missing
+        if: steps.ck-contracts-tag.outcome == 'failure'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/sigdep-contracts
+          ref: master
+          path: ../sigdep-contracts
+
+      # ---------- Java build ----------------------------------------------
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Install sigdep-contracts to local M2
+        working-directory: ../sigdep-contracts
+        run: mvn -B -DskipTests install
+
+      - name: Build hub fat jars
+        run: mvn -B -DskipTests package
+
+      # ---------- SPA build (Vite) ----------------------------------------
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: console-web/package-lock.json
+
+      - name: Install console-web deps
+        working-directory: console-web
+        run: npm ci
+
+      # NB : the Vite build runs INSIDE the console-web Dockerfile too.
+      # We don't pre-build it here ; we let docker/build-push-action do
+      # the multi-stage build so the source layer caching matches.
+
+      # ---------- Docker images -------------------------------------------
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ingestion-api
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ingestion-api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_REGISTRY }}/sigdep-ingestion-api:${{ steps.tag.outputs.version }}
+            ${{ env.IMAGE_REGISTRY }}/sigdep-ingestion-api:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.tag.outputs.version }}
+            org.opencontainers.image.title=SIGDEP-3 ingestion API
+            org.opencontainers.image.licenses=Proprietary
+
+      - name: Build and push console-api
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: console-api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_REGISTRY }}/sigdep-console-api:${{ steps.tag.outputs.version }}
+            ${{ env.IMAGE_REGISTRY }}/sigdep-console-api:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.tag.outputs.version }}
+            org.opencontainers.image.title=SIGDEP-3 console API
+            org.opencontainers.image.licenses=Proprietary
+
+      - name: Build and push console-web
+        uses: docker/build-push-action@v5
+        with:
+          context: console-web
+          file: console-web/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_REGISTRY }}/sigdep-console-web:${{ steps.tag.outputs.version }}
+            ${{ env.IMAGE_REGISTRY }}/sigdep-console-web:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.tag.outputs.version }}
+            org.opencontainers.image.title=SIGDEP-3 console web
+            org.opencontainers.image.licenses=Proprietary
+
+      - name: Summary
+        run: |
+          echo "### Images published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          for image in sigdep-ingestion-api sigdep-console-api sigdep-console-web ; do
+            echo "- \`${{ env.IMAGE_REGISTRY }}/$image:${{ steps.tag.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`${{ env.IMAGE_REGISTRY }}/$image:latest\`" >> $GITHUB_STEP_SUMMARY
+          done
