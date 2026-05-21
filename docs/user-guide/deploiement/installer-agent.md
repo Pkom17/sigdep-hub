@@ -234,7 +234,93 @@ Vous devez voir les mêmes lignes que pour le mode systemd
 
 ---
 
-# Validation finale (commune aux 2 modes)
+# Mode C — Windows (service via WinSW)
+
+Pour les sites qui exécutent SIGDEP-3 sur un poste Windows. L'agent
+tourne comme service Windows natif (démarre au boot, restart automatique
+sur crash, logs dans un dossier dédié). Une archive ZIP prête à
+l'emploi est publiée à chaque tag de version.
+
+## C.1 — Pré-requis Windows
+
+- Windows 10 / 11 / Server 2016 ou plus récent (64-bit).
+- **Droits administrateur** sur le poste pour installer le service.
+- MySQL OpenMRS accessible localement ou via le LAN.
+- Aucun Java à installer — le JRE Temurin 17 est embarqué dans l'archive.
+
+## C.2 — Télécharger l'archive Windows
+
+Aller sur la page **Releases** du dépôt `sigdep-sync` :
+`https://github.com/<owner>/sigdep-sync/releases`. Choisir la version
+souhaitée (ex. `v1.0.2`) et télécharger l'asset
+`sigdep-sync-windows-<version>.zip`.
+
+## C.3 — Extraire dans un chemin permanent
+
+Extraire le ZIP dans un dossier permanent, par exemple :
+
+```
+C:\sigdep-sync\
+```
+
+> Éviter `Program Files` (écriture restreinte par Windows, complique
+> les logs et le buffer SQLite). Choisir un chemin **sans accents** et
+> **sans espaces** pour éviter des bugs WinSW connus.
+
+## C.4 — Configurer le .env
+
+Dans le dossier d'extraction :
+
+1. Copier `sigdep-sync.env.example` en `.env`.
+2. Éditer `.env` (Notepad, ou mieux Notepad++ en encodage UTF-8) :
+   - `SIGDEP_SITE_CODE`
+   - `SIGDEP_LOCAL_DB_PASSWORD`
+   - `SIGDEP_CENTRAL_API_URL`
+   - `SIGDEP_KEYCLOAK_CLIENT_SECRET`
+   - `SIGDEP_BUFFER_PATH` (par défaut `C:\sigdep-sync\buffer.sqlite`,
+     adapter si le dossier d'extraction est différent).
+
+> **Encodage important** : ne **pas** sauvegarder `.env` en UTF-16 /
+> Unicode (option par défaut de l'ancien Notepad). Utiliser UTF-8 ou
+> ANSI. Sinon l'agent lira des caractères corrompus au démarrage.
+
+## C.5 — Installer le service Windows
+
+Clic droit sur **`install-service.bat`** → **« Exécuter en tant
+qu'administrateur »**. Le script :
+
+1. Vérifie la présence du `.env`.
+2. Installe le service Windows nommé `sigdep-sync`.
+3. Le démarre.
+4. Affiche son statut.
+
+Le service apparaît dans `services.msc` sous **« SIGDEP-3 Edge Sync
+Agent »**.
+
+## C.6 — Vérifier les logs
+
+Les logs vont dans `<dossier_installation>\logs\` :
+
+- `sigdep-sync.out.log` — stdout (logs applicatifs).
+- `sigdep-sync.err.log` — stderr (erreurs JVM).
+
+Suivre en live :
+
+```
+Get-Content -Wait C:\sigdep-sync\logs\sigdep-sync.out.log
+```
+
+Vous devez voir, dans les premières secondes :
+
+```
+INFO  Sync cycle started. N extractor(s) registered.
+INFO  Enqueued X records (...)
+INFO  Flushed Y batch(es) for ENTITY ...
+```
+
+---
+
+# Validation finale (commune aux 3 modes)
 
 ## Valider côté hub
 
@@ -273,9 +359,25 @@ docker compose -f docker-compose.site.yml logs -f
 Pour épingler une nouvelle version : éditer `.env`,
 `SIGDEP_SYNC_TAG=1.0.2` (par exemple), puis les 3 commandes ci-dessus.
 
-Dans les deux modes, **l'outbox SQLite et la watermark sont préservées**
+### Mode C (Windows)
+
+1. Télécharger la nouvelle archive ZIP depuis la page Releases.
+2. Dans le dossier d'installation, ouvrir un cmd en administrateur :
+   ```
+   sigdep-sync-service.exe stop
+   ```
+3. Remplacer **uniquement** `sigdep-sync.jar` et le dossier `jre\`
+   par ceux de la nouvelle archive. **Garder** `.env` et
+   `buffer.sqlite`.
+4. Redémarrer :
+   ```
+   sigdep-sync-service.exe start
+   ```
+
+Dans les trois modes, **l'outbox SQLite et la watermark sont préservées**
 (volume Docker pour le mode B, dossier `/var/lib/sigdep-agent` pour
-le mode A) : l'agent reprend exactement où il en était.
+le mode A, fichier `buffer.sqlite` à côté du jar pour le mode C) :
+l'agent reprend exactement où il en était.
 
 ## En cas de problème
 
@@ -304,15 +406,34 @@ Causes fréquentes :
   d'espaces autour des `=`.
 - **Volume non monté** : vérifier `docker volume ls | grep sigdep`.
 
+**Mode C (Windows)** :
+```
+type logs\sigdep-sync.err.log
+type logs\sigdep-sync.out.log
+```
+
+Causes fréquentes :
+- **`install-service.bat` lancé sans droits admin** : refaire avec
+  clic droit → « Exécuter en tant qu'administrateur ».
+- **`.env` en UTF-16 / Unicode** : le ré-enregistrer en UTF-8 ou ANSI
+  (avec Notepad++ par exemple).
+- **Chemin avec espaces ou accents** : WinSW supporte mal `C:\Users\Mon Bureau\…` ;
+  réinstaller dans `C:\sigdep-sync\`.
+- **JRE corrompu** dans le ZIP : re-télécharger l'archive depuis la
+  page Releases.
+
 ### L'agent démarre mais n'envoie rien
 
 - **Vérifier la connectivité hub** : `curl -fsSL <SIGDEP_CENTRAL_API_URL>/actuator/health`.
 - **Vérifier Keycloak** : `curl -fsSL <SIGDEP_KEYCLOAK_URL>/realms/sigdep`.
 - **Vérifier MySQL local** :
   - Mode A : `mysql -u sigdep_reader -p openmrs -e 'SELECT 1'`.
-  - Mode B : `docker exec sigdep-sync sh -c "echo 'SELECT 1' | mysql -u $SIGDEP_LOCAL_DB_USER ..."`
-    (rare ; en pratique, l'erreur de connexion apparaît dans les
-    premières lignes des logs container).
+  - Mode B : l'erreur de connexion apparaît dans les premières lignes
+    des logs container ; sinon
+    `docker exec sigdep-sync ...`.
+  - Mode C : utiliser un client MySQL Windows
+    (`mysql -u sigdep_reader -p openmrs -e "SELECT 1"`) ou tester via
+    HeidiSQL / DBeaver avec les mêmes paramètres que ceux du `.env`.
 
 ### Beaucoup de rejets
 
@@ -320,9 +441,15 @@ Voir [admin/investiguer-rejets.md](../admin/investiguer-rejets.md).
 
 ### Reset complet de l'agent
 
-Si l'outbox est dans un état corrompu, lancer
-`sigdep-sync/scripts/reset-agent.sh` (voir
-`sigdep-sync/scripts/README.md`).
+- **Mode A / Mode B (Linux)** : lancer
+  `sigdep-sync/scripts/reset-agent.sh` (voir
+  `sigdep-sync/scripts/README.md`).
+- **Mode C (Windows)** :
+  ```
+  sigdep-sync-service.exe stop
+  del buffer.sqlite
+  sigdep-sync-service.exe start
+  ```
 
 ## Voir aussi
 
