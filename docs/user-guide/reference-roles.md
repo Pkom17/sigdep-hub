@@ -19,8 +19,8 @@ faire** (lecture seule, administration, etc.).
 
 ## Comment fonctionne le périmètre
 
-Le périmètre suit une règle simple : **tightest-wins** (le plus
-restrictif l'emporte). Concrètement :
+Le périmètre suit une règle simple : **le plus restrictif l'emporte**.
+Concrètement :
 
 1. **Votre rôle** définit un plafond — le maximum que vous puissiez voir.
 2. **Le sélecteur géographique** dans la console permet de **resserrer**

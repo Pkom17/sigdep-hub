@@ -223,7 +223,7 @@ docker compose -f docker-compose.site.yml logs -f
 Vous devez voir les mêmes lignes que pour le mode systemd
 (`Sync cycle started`, `Enqueued X records`, `Flushed Y batch(es)`).
 
-> **Login GHCR si l'image est privée** : si vous voyez
+> **Connexion à GHCR si l'image est privée** : si vous voyez
 > `unauthorized: not authorized for ghcr.io/.../sigdep-sync`, l'image
 > est privée et vous devez vous authentifier :
 > ```bash

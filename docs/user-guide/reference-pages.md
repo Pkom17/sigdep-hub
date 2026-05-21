@@ -19,8 +19,9 @@ Tableau de bord d'entrée. Présente :
   des patients actifs.
 - **Zone Alertes** — sites > 7 j sans sync, sites > 24 h sans sync,
   dernier batch reçu.
-- **Répartition par région** — bar chart horizontal triée par file
-  active (visible uniquement si votre périmètre couvre plusieurs régions).
+- **Répartition par région** — diagramme en barres horizontales trié
+  par file active (visible uniquement si votre périmètre couvre
+  plusieurs régions).
 
 Filtre disponible : sélecteur géographique (Région → District → Site).
 
@@ -80,9 +81,9 @@ Page éclatée en **4 onglets** suivant le parcours patient :
   pédiatriques, référés), évolution annuelle, distribution porte
   d'entrée / régime initial / stade OMS, listing avec Type VIH.
 - **Visites** — visites cliniques de suivi. Distributions stades OMS,
-  dépistage TB, régimes ARV. Bar chart mensuel **Visites vs
-  dispensations ARV**. Line chart **Patients attendus vs venus** par
-  mois (détecte les perdus de vue précoces). Listing détaillé.
+  dépistage TB, régimes ARV. Diagramme en barres mensuel **Visites vs
+  dispensations ARV**. Courbe **Patients attendus vs venus** par mois
+  (détecte les perdus de vue précoces). Listing détaillé.
 - **IVSA** — sous-module patients non stables. KPIs (visites IVSA,
   succès confirmés, avec signes d'alerte), répartition MSD, listing.
 - **Clôtures** — sorties de cohorte. KPIs (clôtures, décès, %
@@ -98,7 +99,7 @@ régime ARV, listing détaillé. Export CSV.
 
 ### `/app/depistage` — Dépistage
 
-Module HIV screening (anonyme — pas de lien patient_id). KPIs (cumul,
+Module de dépistage VIH (anonyme — pas de lien patient_id). KPIs (cumul,
 dépistés, positifs, positivité), évolution annuelle, distributions
 (résultat final, population, motif, sexe). **Section dédiée Porte
 d'entrée** avec contribution % et positivité par point d'accès. Listing.
