@@ -27,9 +27,6 @@ jobs:
       contents: read
       packages: write
 
-    env:
-      IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || format('ghcr.io/{0}', github.repository_owner) }}
-
     steps:
       - name: Resolve tag
         id: tag
@@ -38,6 +35,21 @@ jobs:
           ref="${ref#refs/tags/}"
           echo "tag=$ref" >> $GITHUB_OUTPUT
           echo "version=${ref#v}" >> $GITHUB_OUTPUT
+
+      # Compute the image registry now (rather than as a static env)
+      # because docker requires lowercase repository names and
+      # github.repository_owner can be mixed-case ("Pkom17").
+      - name: Resolve image registry
+        id: registry
+        run: |
+          override="${{ vars.IMAGE_REGISTRY }}"
+          if [[ -n "$override" ]]; then
+            registry="$override"
+          else
+            owner="${{ github.repository_owner }}"
+            registry="ghcr.io/${owner,,}"
+          fi
+          echo "registry=$registry" >> $GITHUB_OUTPUT
 
       - name: Checkout sigdep-hub
         uses: actions/checkout@v4
@@ -112,8 +124,8 @@ jobs:
           file: ingestion-api/Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_REGISTRY }}/sigdep-ingestion-api:${{ steps.tag.outputs.version }}
-            ${{ env.IMAGE_REGISTRY }}/sigdep-ingestion-api:latest
+            ${{ steps.registry.outputs.registry }}/sigdep-ingestion-api:${{ steps.tag.outputs.version }}
+            ${{ steps.registry.outputs.registry }}/sigdep-ingestion-api:latest
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -128,8 +140,8 @@ jobs:
           file: console-api/Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_REGISTRY }}/sigdep-console-api:${{ steps.tag.outputs.version }}
-            ${{ env.IMAGE_REGISTRY }}/sigdep-console-api:latest
+            ${{ steps.registry.outputs.registry }}/sigdep-console-api:${{ steps.tag.outputs.version }}
+            ${{ steps.registry.outputs.registry }}/sigdep-console-api:latest
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -144,8 +156,8 @@ jobs:
           file: console-web/Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_REGISTRY }}/sigdep-console-web:${{ steps.tag.outputs.version }}
-            ${{ env.IMAGE_REGISTRY }}/sigdep-console-web:latest
+            ${{ steps.registry.outputs.registry }}/sigdep-console-web:${{ steps.tag.outputs.version }}
+            ${{ steps.registry.outputs.registry }}/sigdep-console-web:latest
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -158,6 +170,6 @@ jobs:
           echo "### Images published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           for image in sigdep-ingestion-api sigdep-console-api sigdep-console-web ; do
-            echo "- \`${{ env.IMAGE_REGISTRY }}/$image:${{ steps.tag.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`${{ env.IMAGE_REGISTRY }}/$image:latest\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`${{ steps.registry.outputs.registry }}/$image:${{ steps.tag.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`${{ steps.registry.outputs.registry }}/$image:latest\`" >> $GITHUB_STEP_SUMMARY
           done
