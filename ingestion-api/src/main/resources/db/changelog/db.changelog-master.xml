@@ -40,5 +40,6 @@
     <include file="db/changelog/v1.0/031-create-screenings.xml"/>
     <include file="db/changelog/v1.0/032-create-ptme.xml"/>
     <include file="db/changelog/v1.0/033-add-visits-ivsa-columns.xml"/>
+    <include file="db/changelog/v1.0/034-fix-source-uuid-types.xml"/>
 
 </databaseChangeLog>
